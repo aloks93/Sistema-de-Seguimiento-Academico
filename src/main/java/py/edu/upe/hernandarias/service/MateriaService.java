@@ -10,6 +10,7 @@ import py.edu.upe.hernandarias.entity.Carrera;
 import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.exception.ConflictoException;
+import py.edu.upe.hernandarias.exception.DatoInvalidoException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
 import py.edu.upe.hernandarias.repository.CarreraRepository;
@@ -52,12 +53,15 @@ public class MateriaService {
             throw new ConflictoException("Ya existe una materia con el código " + codigo);
         }
 
+        Carrera carrera = buscarCarrera(request.carreraId());
+        verificarSemestre(request.semestre(), carrera);
+
         Materia materia = Materia.builder()
                 .codigo(codigo)
                 .nombre(request.nombre().trim())
                 .creditos(request.creditos())
                 .semestre(request.semestre())
-                .carrera(buscarCarrera(request.carreraId()))
+                .carrera(carrera)
                 .docente(buscarDocente(request.docenteId()))
                 .build();
 
@@ -72,6 +76,7 @@ public class MateriaService {
             throw new ConflictoException("Ya existe otra materia con el código " + codigo);
         }
         Carrera carrera = buscarCarrera(request.carreraId());
+        verificarSemestre(request.semestre(), carrera);
         if (!carrera.getId().equals(materia.getCarrera().getId()) && calificacionRepository.existsByMateriaId(id)) {
             throw new ConflictoException(
                     "La materia %s ya tiene notas; no se puede cambiar de carrera".formatted(materia.getCodigo()));
@@ -96,6 +101,13 @@ public class MateriaService {
                     "La materia %s tiene notas cargadas; elimine primero esas notas".formatted(materia.getCodigo()));
         }
         materiaRepository.delete(materia);
+    }
+
+    private static void verificarSemestre(int semestre, Carrera carrera) {
+        if (semestre > carrera.getSemestres()) {
+            throw new DatoInvalidoException("%s dura %d semestres; la materia no puede estar en el semestre %d"
+                    .formatted(carrera.getNombre(), carrera.getSemestres(), semestre));
+        }
     }
 
     private Materia buscar(Long id) {

@@ -88,11 +88,11 @@ class GestionApiIntegrationTest {
     @Test
     void adminGestionaCarrerasYDocenteSoloLasConsulta() throws Exception {
         mockMvc.perform(conToken(post("/api/carreras"), tokenAdmin)
-                        .content("{\"codigo\":\"INF\",\"nombre\":\"Otra\"}"))
+                        .content("{\"codigo\":\"INF\",\"nombre\":\"Otra\",\"semestres\":8}"))
                 .andExpect(status().isConflict());
 
         mockMvc.perform(conToken(put("/api/carreras/" + administracion), tokenAdmin)
-                        .content("{\"codigo\":\"ADM\",\"nombre\":\"Lic. en Administración\"}"))
+                        .content("{\"codigo\":\"ADM\",\"nombre\":\"Lic. en Administración\",\"semestres\":8}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Lic. en Administración"));
 
@@ -107,7 +107,7 @@ class GestionApiIntegrationTest {
                 .andExpect(jsonPath("$[0].materias").value(1));
 
         mockMvc.perform(conToken(post("/api/carreras"), tokenProfe)
-                        .content("{\"codigo\":\"DER\",\"nombre\":\"Derecho\"}"))
+                        .content("{\"codigo\":\"DER\",\"nombre\":\"Derecho\",\"semestres\":10}"))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(conToken(delete("/api/carreras/" + informatica), tokenAdmin))
@@ -307,7 +307,7 @@ class GestionApiIntegrationTest {
 
     private long crearCarrera(String codigo, String nombre) throws Exception {
         return id(mockMvc.perform(conToken(post("/api/carreras"), tokenAdmin)
-                        .content("{\"codigo\":\"%s\",\"nombre\":\"%s\"}".formatted(codigo, nombre)))
+                        .content("{\"codigo\":\"%s\",\"nombre\":\"%s\",\"semestres\":10}".formatted(codigo, nombre)))
                 .andExpect(status().isCreated()));
     }
 

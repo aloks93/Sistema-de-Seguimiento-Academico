@@ -47,7 +47,7 @@ public class UsuarioService {
     }
 
     /**
-     * Activa/desactiva el usuario o cambia su contraseña.
+     * Activa/desactiva el usuario, cambia su contraseña o le quita la verificación en dos pasos.
      *
      * @param usernameActual quien hace el cambio; no puede desactivarse a sí mismo
      */
@@ -64,6 +64,11 @@ public class UsuarioService {
         }
         if (StringUtils.hasText(request.password())) {
             usuario.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+        // Para quien perdió el celular: vuelve a ingresar solo con contraseña y puede reactivarlo
+        if (Boolean.TRUE.equals(request.quitarDosFactores())) {
+            usuario.setTotpSecreto(null);
+            usuario.setTotpSecretoPendiente(null);
         }
 
         return UsuarioResponse.from(usuarioRepository.save(usuario));

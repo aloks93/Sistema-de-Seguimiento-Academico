@@ -25,6 +25,9 @@ public interface MateriaRepository extends JpaRepository<Materia, Long> {
     @EntityGraph(attributePaths = "docente")
     List<Materia> findByDocenteIsNotNullOrderByCodigoAsc();
 
+    @Query("select max(m.semestre) from Materia m where m.carrera.id = :carreraId")
+    Integer findMaxSemestreByCarreraId(@Param("carreraId") Long carreraId);
+
     @Query("select distinct m.carrera.id from Materia m where m.docente.usuario.username = :username")
     Set<Long> findCarreraIdsByDocenteUsername(@Param("username") String username);
 

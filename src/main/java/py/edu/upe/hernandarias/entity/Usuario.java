@@ -45,4 +45,16 @@ public class Usuario {
     /** Preferencias de apariencia en JSON (ver PreferenciasDto); {@code null} = valores por defecto. */
     @Column(length = 1000)
     private String preferencias;
+
+    /** Clave TOTP (Base32) de la verificación en dos pasos; {@code null} = desactivada. */
+    @Column(name = "totp_secreto", length = 64)
+    private String totpSecreto;
+
+    /** Clave generada al empezar a activar el 2FA, hasta que se confirma con un código. */
+    @Column(name = "totp_secreto_pendiente", length = 64)
+    private String totpSecretoPendiente;
+
+    public boolean tieneDosFactores() {
+        return totpSecreto != null;
+    }
 }

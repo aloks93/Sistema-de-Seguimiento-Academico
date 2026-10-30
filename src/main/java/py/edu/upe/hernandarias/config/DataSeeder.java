@@ -44,9 +44,9 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         Carrera informatica = carreraRepository.save(
-                Carrera.builder().codigo("INF").nombre("Ingeniería en Informática").build());
+                Carrera.builder().codigo("INF").nombre("Ingeniería en Informática").semestres(10).build());
         Carrera administracion = carreraRepository.save(
-                Carrera.builder().codigo("ADM").nombre("Administración de Empresas").build());
+                Carrera.builder().codigo("ADM").nombre("Administración de Empresas").semestres(8).build());
 
         crearUsuario("admin", "admin123", Rol.ADMIN);
         Docente docente = docenteRepository.save(Docente.builder()

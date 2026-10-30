@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** Traduce las excepciones a respuestas RFC 7807 ({@code application/problem+json}). */
 @RestControllerAdvice
@@ -25,6 +26,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictoException.class)
     public ProblemDetail handleConflicto(ConflictoException ex) {
         return problema(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
+    }
+
+    @ExceptionHandler(CodigoInvalidoException.class)
+    public ProblemDetail handleCodigoInvalido(CodigoInvalidoException ex) {
+        return problema(HttpStatus.UNAUTHORIZED, "No autorizado", ex.getMessage());
+    }
+
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    public ProblemDetail handleDemasiadosIntentos(DemasiadosIntentosException ex) {
+        return problema(HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos", ex.getMessage());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail handleArchivoGrande(MaxUploadSizeExceededException ex) {
+        return problema(HttpStatus.PAYLOAD_TOO_LARGE, "Archivo demasiado grande", "El archivo supera el máximo de 5 MB");
     }
 
     @ExceptionHandler(DatoInvalidoException.class)

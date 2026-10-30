@@ -45,7 +45,11 @@ public class CarreraService {
             throw new ConflictoException("Ya existe la carrera " + nombre);
         }
 
-        Carrera carrera = carreraRepository.save(Carrera.builder().codigo(codigo).nombre(nombre).build());
+        Carrera carrera = carreraRepository.save(Carrera.builder()
+                .codigo(codigo)
+                .nombre(nombre)
+                .semestres(request.semestres())
+                .build());
         return respuesta(carrera);
     }
 
@@ -61,8 +65,15 @@ public class CarreraService {
             throw new ConflictoException("Ya existe otra carrera llamada " + nombre);
         }
 
+        Integer ultimoSemestreUsado = materiaRepository.findMaxSemestreByCarreraId(id);
+        if (ultimoSemestreUsado != null && request.semestres() < ultimoSemestreUsado) {
+            throw new ConflictoException("La carrera tiene materias en el semestre %d; no puede durar menos"
+                    .formatted(ultimoSemestreUsado));
+        }
+
         carrera.setCodigo(codigo);
         carrera.setNombre(nombre);
+        carrera.setSemestres(request.semestres());
         return respuesta(carreraRepository.save(carrera));
     }
 

@@ -37,7 +37,11 @@ public class SecurityConfig {
                                 .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/estudiantes/me/**").hasRole(Rol.ESTUDIANTE.name())
+                        .requestMatchers("/api/estudiantes/me/**", "/api/exportar/mis-notas").hasRole(Rol.ESTUDIANTE.name())
+                        // Excel: el contenido respeta la jerarquía; docentes/carreras y la carga masiva son del ADMIN
+                        .requestMatchers("/api/exportar/docentes", "/api/exportar/carreras", "/api/carga-masiva/**")
+                                .hasRole(Rol.ADMIN.name())
+                        .requestMatchers("/api/exportar/**").hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
                         // Notas: el servicio además limita a cada docente a sus materias
                         .requestMatchers("/api/calificaciones/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())

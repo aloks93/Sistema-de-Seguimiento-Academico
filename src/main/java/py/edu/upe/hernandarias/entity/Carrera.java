@@ -6,6 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,4 +32,11 @@ public class Carrera {
 
     @Column(nullable = false, unique = true, length = 120)
     private String nombre;
+
+    /** Duración de la carrera; ninguna materia puede estar en un semestre mayor. */
+    @Min(1)
+    @Max(12)
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer semestres = 10;
 }
