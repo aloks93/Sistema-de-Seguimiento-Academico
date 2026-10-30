@@ -1,6 +1,6 @@
 ﻿# Prueba rápida de la API con los usuarios de ejemplo del perfil dev.
-# Requiere que la aplicación esté corriendo (iniciar.cmd en otra ventana).
-# Uso: doble clic en probar-api.cmd
+# Requiere que el backend esté corriendo (iniciar-todo.cmd o comandos\iniciar-backend.cmd en otra ventana).
+# Uso: comandos\probar-api.cmd
 
 $api = 'http://localhost:8080'
 
@@ -60,7 +60,7 @@ try {
 } catch {
     Write-Host ""
     if (-not (Codigo-Http $_)) {
-        Write-Host "No se pudo conectar con $api. ¿Está abierta la ventana de iniciar.cmd y" -ForegroundColor Red
+        Write-Host "No se pudo conectar con $api. ¿Está abierta la ventana del backend (iniciar-todo.cmd) y" -ForegroundColor Red
         Write-Host "ya apareció el mensaje 'Started SeguimientoAcademicoApplication'?" -ForegroundColor Red
     } else {
         Write-Host "Error inesperado: $($_.Exception.Message)" -ForegroundColor Red
