@@ -35,7 +35,7 @@ const NOMBRES_CAMPO = {
     nota: 'Nota', codigo: 'Código', nombre: 'Nombre', creditos: 'Créditos', semestre: 'Semestre',
     matricula: 'Matrícula', nombreCompleto: 'Nombre completo', carreraId: 'Carrera', docenteId: 'Docente',
     username: 'Usuario', password: 'Contraseña', actual: 'Contraseña actual', nueva: 'Contraseña nueva',
-    colorPrimario: 'Color principal', colorBarra: 'Color de la barra',
+    colorPrimario: 'Color principal', colorBarra: 'Color de la barra', semestres: 'Semestres',
 };
 
 export class ErrorApi extends Error {
@@ -71,12 +71,17 @@ function marcarCarga(delta) {
     document.documentElement.classList.toggle('cargando', pendientes > 0);
 }
 
-export async function api(metodo, ruta, cuerpo) {
+const esJson = (respuesta) => (respuesta.headers.get('Content-Type') || '').includes('json');
+
+/** Petición autenticada. Devuelve la respuesta si es exitosa; si no, lanza un error con mensaje legible. */
+async function pedir(metodo, ruta, { json, formulario } = {}) {
     const opciones = { method: metodo, headers: {} };
     if (estado.sesion) opciones.headers.Authorization = 'Bearer ' + estado.sesion.token;
-    if (cuerpo !== undefined) {
+    if (json !== undefined) {
         opciones.headers['Content-Type'] = 'application/json';
-        opciones.body = JSON.stringify(cuerpo);
+        opciones.body = JSON.stringify(json);
+    } else if (formulario) {
+        opciones.body = formulario; // el navegador pone el Content-Type multipart
     }
 
     marcarCarga(+1);
@@ -91,13 +96,38 @@ export async function api(metodo, ruta, cuerpo) {
             alExpirar();
             throw new Error('La sesión expiró. Ingrese de nuevo.');
         }
-        const esJson = (respuesta.headers.get('Content-Type') || '').includes('json');
-        const datos = esJson ? await respuesta.json() : null;
-        if (!respuesta.ok) throw new ErrorApi(respuesta.status, datos);
-        return datos;
+        if (!respuesta.ok) throw new ErrorApi(respuesta.status, esJson(respuesta) ? await respuesta.json() : null);
+        return respuesta;
     } finally {
         marcarCarga(-1);
     }
+}
+
+export async function api(metodo, ruta, cuerpo) {
+    const respuesta = await pedir(metodo, ruta, { json: cuerpo });
+    return esJson(respuesta) ? respuesta.json() : null;
+}
+
+/** Descarga un archivo (Excel) y lo guarda con el nombre que indica el servidor. Devuelve ese nombre. */
+export async function descargar(ruta) {
+    const respuesta = await pedir('GET', ruta);
+    const disposicion = respuesta.headers.get('Content-Disposition') || '';
+    const nombre = decodeURIComponent(disposicion.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)?.[1] ?? 'archivo.xlsx');
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(await respuesta.blob());
+    enlace.download = nombre;
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 2000);
+    return nombre;
+}
+
+/** Sube un archivo en el campo "archivo" y devuelve la respuesta JSON. */
+export async function subirArchivo(ruta, archivo) {
+    const formulario = new FormData();
+    formulario.append('archivo', archivo);
+    return (await pedir('POST', ruta, { formulario })).json();
 }
 
 // ======================= DOM =======================

@@ -36,6 +36,11 @@ const ICONOS = {
     grafico: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/>',
     estrella: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
     logo: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+    descargar: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    subir: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+    excel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+    celular: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+    escudo: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
 };
 
 export function icono(nombre, clase = 'icono') {
@@ -184,7 +189,7 @@ export function confirmar({ titulo, mensaje, textoBoton = 'Confirmar', peligro =
  * requerido, bloqueado, ayuda, placeholder, min, max, minlength, maxlength, ancho: 'completo' }.
  * alGuardar(datos) puede lanzar un error: se muestra dentro de la ventana sin cerrarla.
  */
-export function abrirFormulario({ titulo, descripcion, campos, valores = {}, textoBoton = 'Guardar', alGuardar }) {
+export function abrirFormulario({ titulo, descripcion, antes, campos, valores = {}, textoBoton = 'Guardar', alGuardar }) {
     const error = el('div', { class: 'modal__error', role: 'alert', hidden: true });
     const botonGuardar = boton(textoBoton, null, { variante: 'primario', tipo: 'submit' });
     const formulario = el('form', { class: 'modal__caja' },
@@ -192,7 +197,9 @@ export function abrirFormulario({ titulo, descripcion, campos, valores = {}, tex
             el('div', {}, el('h2', { class: 'modal__titulo' }, titulo),
                 descripcion && el('p', { class: 'modal__texto' }, descripcion)),
             botonIcono('cerrar', 'Cerrar', cerrarModal)),
-        el('div', { class: 'modal__cuerpo formulario' }, campos.map((campo) => crearCampo(campo, valores[campo.nombre]))),
+        el('div', { class: 'modal__cuerpo formulario' },
+            antes && el('div', { class: 'campo--completo' }, antes),
+            campos.map((campo) => crearCampo(campo, valores[campo.nombre]))),
         error,
         el('div', { class: 'modal__pie' }, boton('Cancelar', cerrarModal), botonGuardar));
 
@@ -225,8 +232,9 @@ function crearCampo(campo, valor) {
         control = el('input', {
             name: nombre, type: tipo, required: requerido, disabled: bloqueado,
             placeholder: campo.placeholder, min: campo.min, max: campo.max,
-            minlength: campo.minlength, maxlength: campo.maxlength,
-            autocomplete: tipo === 'password' ? 'new-password' : 'off',
+            minlength: campo.minlength, maxlength: campo.maxlength, pattern: campo.pattern,
+            inputmode: campo.inputmode, class: campo.clase,
+            autocomplete: campo.autocomplete ?? (tipo === 'password' ? 'new-password' : 'off'),
         });
     }
     if (valor !== undefined && valor !== null) control.value = valor;

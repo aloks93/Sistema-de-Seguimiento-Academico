@@ -43,20 +43,39 @@
                 <p class="login__subtitulo">Ingrese con su usuario y contraseña.</p>
             </div>
 
-            <label class="campo">
-                <span class="campo__etiqueta">Usuario</span>
-                <input name="username" autocomplete="username" required autocapitalize="none" spellcheck="false">
-            </label>
-            <label class="campo">
-                <span class="campo__etiqueta">Contraseña</span>
-                <input name="password" type="password" autocomplete="current-password" required>
-            </label>
+            <div id="login-credenciales" class="login__campos">
+                <label class="campo">
+                    <span class="campo__etiqueta">Usuario</span>
+                    <input name="username" autocomplete="username" required autocapitalize="none" spellcheck="false">
+                </label>
+                <label class="campo">
+                    <span class="campo__etiqueta">Contraseña</span>
+                    <input name="password" type="password" autocomplete="current-password" required>
+                </label>
+            </div>
+
+            <!-- Segundo paso: solo para usuarios con verificación en dos pasos -->
+            <div id="login-codigo" class="login__campos" hidden>
+                <div class="login__aviso">
+                    <svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>
+                    </svg>
+                    <span>Abra <strong>Google Authenticator</strong> en su celular e ingrese el código de 6 dígitos.</span>
+                </div>
+                <label class="campo">
+                    <span class="campo__etiqueta">Código de verificación</span>
+                    <input name="codigo" class="entrada-codigo" inputmode="numeric" autocomplete="one-time-code"
+                           maxlength="6" pattern="\d{6}" placeholder="000000">
+                </label>
+            </div>
 
             <div id="login-error" class="modal__error" role="alert" hidden></div>
 
             <button type="submit" class="boton boton--primario boton--grande">
-                <span>Ingresar</span>
+                <span id="login-boton-texto">Ingresar</span>
             </button>
+            <button id="login-volver" type="button" class="boton boton--fantasma" hidden>Volver</button>
 
             <details class="ayuda">
                 <summary>Usuarios de prueba</summary>

@@ -492,6 +492,53 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .guardado { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--texto-sutil); }
 .guardado--ok { color: var(--exito); }
 
+/* ---------- Verificación en dos pasos ---------- */
+.dosfa { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
+.dosfa__pasos { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--texto-sutil); font-size: .92rem; }
+.dosfa__pasos strong { color: var(--texto); }
+.dosfa__qr { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.dosfa__qr img { width: 184px; height: 184px; padding: 10px; border-radius: 12px; background: #fff; box-shadow: var(--sombra); }
+.dosfa__clave { max-width: 220px; font-size: .8rem; color: var(--texto-sutil); }
+.dosfa__clave summary { cursor: pointer; }
+.dosfa__clave code {
+    display: block; margin-top: 6px; padding: 8px; border-radius: 6px; word-break: break-all;
+    font-family: ui-monospace, Consolas, monospace; font-size: .85rem; letter-spacing: .05em;
+    background: var(--superficie-2); color: var(--texto); border: 1px solid var(--borde);
+}
+.entrada-codigo { text-align: center; font-size: 1.5rem; font-weight: 700; letter-spacing: .5em; font-variant-numeric: tabular-nums; }
+.login__campos { display: flex; flex-direction: column; gap: 18px; }
+.login__aviso {
+    display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radio-chico);
+    background: var(--primario-suave); color: var(--texto); font-size: .92rem;
+}
+.login__aviso .icono { color: var(--primario); margin-top: 2px; }
+
+/* ---------- Carga masiva ---------- */
+.zona-archivo {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 170px; padding: 24px; text-align: center; cursor: pointer;
+    border: 2px dashed var(--borde-fuerte); border-radius: var(--radio); background: var(--superficie-2);
+    transition: border-color var(--transicion), background-color var(--transicion);
+}
+.zona-archivo:hover, .zona-archivo--encima { border-color: var(--primario); background: var(--primario-suave); }
+.zona-archivo--cargada { border-style: solid; border-color: var(--primario-borde); }
+.zona-archivo__icono { width: 34px; height: 34px; color: var(--primario); }
+.zona-archivo__texto { font-weight: 600; }
+.zona-archivo__entrada { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.zona-archivo:focus-within { box-shadow: var(--anillo); }
+.resultado {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--radio-chico);
+    background: var(--primario-suave); font-weight: 500;
+}
+.resultado > span { flex: 1; min-width: 220px; }
+.resultado > .icono { color: var(--primario); }
+.resultado--ok { background: color-mix(in srgb, var(--exito) 14%, transparent); }
+.resultado--ok > .icono { color: var(--exito); }
+.resultado--error { background: color-mix(in srgb, var(--peligro) 12%, transparent); color: var(--peligro); }
+.resultado--error > .icono { color: var(--peligro); }
+.detalles summary { cursor: pointer; color: var(--texto-sutil); margin-bottom: 10px; }
+.herramientas__empuje { flex: 1; }
+
 .cuenta { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .cuenta__perfil { display: flex; align-items: center; gap: 16px; }
 .cuenta__nombre { font-size: 1.1rem; font-weight: 700; }
@@ -544,7 +591,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
    AVISOS (notificaciones)
    ===================================================================== */
 .avisos {
-    position: fixed; right: 20px; bottom: 20px; z-index: 200;
+    position: fixed; right: 20px; top: 20px; z-index: 200;
     display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
     width: min(420px, calc(100vw - 40px)); pointer-events: none;
 }
@@ -599,6 +646,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
     .encabezado__acciones { width: 100%; }
     .encabezado__acciones .boton { flex: 1; }
     .formulario { grid-template-columns: minmax(0, 1fr); }
+    .dosfa { grid-template-columns: minmax(0, 1fr); }
     .buscador { max-width: none; }
     .filtro { flex: 1 1 100%; }
     .filtro__select { flex: 1; min-width: 0; }
@@ -606,7 +654,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
     .dato { padding: 14px; gap: 10px; flex-direction: column; }
     .dato__valor { font-size: 1.35rem; }
     .panel { padding: 16px; }
-    .avisos { right: 12px; left: 12px; bottom: 12px; width: auto; }
+    .avisos { right: 12px; left: 12px; top: 12px; width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

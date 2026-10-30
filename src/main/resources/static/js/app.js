@@ -7,8 +7,8 @@
 // Todos tienen "Ajustes" para personalizar la apariencia y cambiar su contraseña.
 
 import {
-    $, api, el, estado, esAdmin, formatearFecha, formatearNumero, guardarSesion,
-    leerSesion, alExpirarSesion, normalizar, promedio,
+    $, api, descargar, el, estado, esAdmin, formatearFecha, formatearNumero, guardarSesion,
+    leerSesion, alExpirarSesion, normalizar, promedio, subirArchivo,
 } from './nucleo.js';
 import {
     abrirFormulario, avatar, avisar, barraAvance, barraHerramientas, boton, botonIcono, buscador, chip,
@@ -42,10 +42,31 @@ const RUTAS = {
     },
     docentes: { titulo: 'Docentes', icono: 'docentes', roles: ['ADMIN'], render: vistaDocentes, subtitulo: 'Profesores y las materias que tienen a cargo' },
     carreras: { titulo: 'Carreras', icono: 'carreras', roles: ['ADMIN'], render: vistaCarreras, subtitulo: 'Carreras de la institución' },
-    usuarios: { titulo: 'Usuarios', icono: 'usuarios', roles: ['ADMIN'], render: vistaUsuarios, subtitulo: 'Cuentas de acceso, activación y contraseñas' },
-    ajustes: { titulo: 'Ajustes', icono: 'ajustes', roles: TODOS, render: vistaAjustes, subtitulo: 'Apariencia de la interfaz y datos de su cuenta' },
+    cargaMasiva: {
+        titulo: 'Carga masiva', icono: 'subir', roles: ['ADMIN'], render: vistaCargaMasiva,
+        subtitulo: 'Cargue docentes, materias y estudiantes de una carrera con una plantilla Excel',
+    },
+    usuarios: { titulo: 'Usuarios', icono: 'usuarios', roles: ['ADMIN'], render: vistaUsuarios, subtitulo: 'Cuentas de acceso, activación, contraseñas y verificación en dos pasos' },
+    ajustes: { titulo: 'Ajustes', icono: 'ajustes', roles: TODOS, render: vistaAjustes, subtitulo: 'Apariencia, seguridad y datos de su cuenta' },
 };
-const MENU_PRINCIPAL = ['inicio', 'misNotas', 'notas', 'estudiantes', 'materias', 'docentes', 'carreras', 'usuarios'];
+const MENU_PRINCIPAL = ['inicio', 'misNotas', 'notas', 'estudiantes', 'materias', 'docentes', 'carreras', 'cargaMasiva', 'usuarios'];
+
+/** Botón que descarga un Excel generado por el servidor. */
+function botonExcel(texto, ruta, variante = 'secundario') {
+    const nuevo = boton(texto, async () => {
+        nuevo.disabled = true;
+        nuevo.classList.add('boton--ocupado');
+        try {
+            avisar(`Descargado: ${await descargar(ruta)}`, 'exito');
+        } catch (error) {
+            avisar(error.message, 'error');
+        } finally {
+            nuevo.disabled = false;
+            nuevo.classList.remove('boton--ocupado');
+        }
+    }, { variante, iconoNombre: 'descargar', titulo: 'Descargar en Excel' });
+    return nuevo;
+}
 
 const resolver = (valor) => (typeof valor === 'function' ? valor() : valor);
 const rutasDelRol = (ids) => ids.filter((id) => RUTAS[id].roles.includes(estado.sesion.rol));
@@ -148,6 +169,19 @@ const recargar = () => navegar({ suave: true });
 
 // ======================= Sesión =======================
 
+/** Muestra el paso de usuario y contraseña, o el del código de verificación (2FA). */
+function pasoDeLogin(conCodigo) {
+    const formulario = $('#form-login');
+    $('#login-credenciales').hidden = conCodigo;
+    $('#login-codigo').hidden = !conCodigo;
+    $('#login-volver').hidden = !conCodigo;
+    $('#login-boton-texto').textContent = conCodigo ? 'Verificar' : 'Ingresar';
+    formulario.elements.codigo.required = conCodigo;
+    formulario.elements.codigo.value = '';
+    $('#login-error').hidden = true;
+    (conCodigo ? formulario.elements.codigo : formulario.elements.username).focus();
+}
+
 async function ingresar(evento) {
     evento.preventDefault();
     const formulario = evento.currentTarget;
@@ -157,15 +191,23 @@ async function ingresar(evento) {
     botonIngresar.disabled = true;
     botonIngresar.classList.add('boton--ocupado');
     try {
-        const { username, password } = Object.fromEntries(new FormData(formulario));
-        const respuesta = await api('POST', '/api/auth/login', { username: username.trim(), password });
+        const { username, password, codigo } = Object.fromEntries(new FormData(formulario));
+        const conCodigo = !$('#login-codigo').hidden;
+        const respuesta = await api('POST', '/api/auth/login',
+            { username: username.trim(), password, codigo: conCodigo ? codigo.trim() : null });
+        if (respuesta.requiereCodigo) {
+            pasoDeLogin(true);
+            return;
+        }
         estado.sesion = { token: respuesta.token, username: respuesta.username, rol: respuesta.rol };
         guardarSesion(estado.sesion);
         formulario.reset();
+        pasoDeLogin(false);
         await iniciarApp();
     } catch (excepcion) {
         error.replaceChildren(icono('alerta'), el('span', {}, excepcion.message));
         error.hidden = false;
+        if (!$('#login-codigo').hidden) formulario.elements.codigo.select();
     } finally {
         botonIngresar.disabled = false;
         botonIngresar.classList.remove('boton--ocupado');
@@ -177,7 +219,7 @@ function mostrarLogin() {
     $('#vista-app').hidden = true;
     $('#vista-login').hidden = false;
     animarEntrada($('#vista-login'));
-    $('#form-login [name=username]').focus();
+    pasoDeLogin(false);
 }
 
 function cerrarSesion(mensaje) {
@@ -237,6 +279,7 @@ async function vistaInicio() {
     const peticiones = [api('GET', '/api/materias'), api('GET', '/api/estudiantes'), api('GET', '/api/calificaciones')];
     if (esAdmin()) peticiones.push(api('GET', '/api/carreras'), api('GET', '/api/docentes'));
     const [materias, estudiantes, notas, carreras, docentes] = await Promise.all(peticiones);
+    ponerAcciones(botonExcel(esAdmin() ? 'Exportar todas las notas' : 'Exportar mis notas cargadas', '/api/exportar/notas'));
 
     const promedioGeneral = promedio(notas.map((nota) => nota.nota));
     const sinDocente = materias.filter((materia) => !materia.docenteId).length;
@@ -510,7 +553,9 @@ function planillaNotas(materia, alumnos, notas, selector) {
         panel({ contenido: el('div', { class: 'planilla__cabecera' }, selector, resumen), clase: 'panel--selector' }),
         alumnos.length && barraHerramientas(
             buscador('Buscar estudiante…', () => contenedor),
-            el('span', { class: 'herramientas__ayuda' }, icono('info'), 'Escriba la nota y presione Enter para pasar al siguiente.')),
+            el('span', { class: 'herramientas__ayuda' }, icono('info'), 'Escriba la nota y presione Enter para pasar al siguiente.'),
+            el('span', { class: 'herramientas__empuje' }),
+            botonExcel('Exportar planilla', `/api/exportar/notas?materiaId=${materia.id}`)),
         contenedor,
         barraGuardar);
 }
@@ -527,7 +572,9 @@ async function vistaEstudiantes(parametros) {
         return estadoVacio({ iconoNombre: 'estudiantes', titulo: 'Todavía no tiene materias a cargo',
             texto: 'Podrá agregar y ver estudiantes de las carreras donde tenga materias asignadas.' });
     }
-    ponerAcciones(boton('Nuevo estudiante', () => formularioEstudiante(carreras), { variante: 'primario', iconoNombre: 'mas' }));
+    ponerAcciones(
+        botonExcel('Exportar', conParametro('/api/exportar/estudiantes', 'carreraId', carreraId)),
+        boton('Nuevo estudiante', () => formularioEstudiante(carreras), { variante: 'primario', iconoNombre: 'mas' }));
 
     const contenedor = el('div', {}, tabla({
         columnas: [
@@ -600,10 +647,10 @@ async function vistaMaterias(parametros) {
         esAdmin() ? api('GET', '/api/carreras') : [],
         esAdmin() ? api('GET', '/api/docentes') : [],
     ]);
-    if (esAdmin()) {
-        ponerAcciones(boton('Nueva materia', () => formularioMateria(carreras, docentes),
+    ponerAcciones(
+        botonExcel('Exportar', conParametro('/api/exportar/materias', 'carreraId', carreraId)),
+        esAdmin() && boton('Nueva materia', () => formularioMateria(carreras, docentes),
             { variante: 'primario', iconoNombre: 'mas' }));
-    }
 
     const contenedor = el('div', {}, tabla({
         columnas: [
@@ -672,7 +719,9 @@ function formularioMateria(carreras, docentes, materia) {
 
 async function vistaDocentes() {
     const docentes = await api('GET', '/api/docentes');
-    ponerAcciones(boton('Nuevo docente', () => formularioDocente(), { variante: 'primario', iconoNombre: 'mas' }));
+    ponerAcciones(
+        botonExcel('Exportar', '/api/exportar/docentes'),
+        boton('Nuevo docente', () => formularioDocente(), { variante: 'primario', iconoNombre: 'mas' }));
 
     const contenedor = el('div', {}, tabla({
         columnas: [
@@ -725,14 +774,18 @@ function formularioDocente(docente) {
 
 async function vistaCarreras() {
     const carreras = await api('GET', '/api/carreras');
-    ponerAcciones(boton('Nueva carrera', () => formularioCarrera(), { variante: 'primario', iconoNombre: 'mas' }));
+    ponerAcciones(
+        botonExcel('Exportar', '/api/exportar/carreras'),
+        boton('Nueva carrera', () => formularioCarrera(), { variante: 'primario', iconoNombre: 'mas' }));
 
     const contenedor = el('div', {}, tabla({
         columnas: [
             { titulo: 'Carrera', celda: (c) => el('div', { class: 'celda-doble' }, el('span', {}, c.nombre), el('span', { class: 'sutil' }, c.codigo)) },
+            { titulo: 'Semestres', clase: 'num', celda: (c) => c.semestres },
             { titulo: 'Materias', clase: 'num', celda: (c) => c.materias },
             { titulo: 'Estudiantes', clase: 'num', celda: (c) => c.estudiantes },
             { titulo: '', clase: 'acciones', celda: (c) => [
+                botonExcel('Plantilla', `/api/carga-masiva/plantilla?carreraId=${c.id}`, 'fantasma'),
                 boton('Ver estudiantes', () => ir(`estudiantes?carrera=${c.id}`), { variante: 'fantasma' }),
                 botonIcono('editar', `Editar ${c.nombre}`, () => formularioCarrera(c)),
                 botonIcono('eliminar', `Eliminar ${c.nombre}`, () => eliminarRegistro(`/api/carreras/${c.id}`,
@@ -753,13 +806,14 @@ function formularioCarrera(carrera) {
         titulo: carrera ? `Editar ${carrera.nombre}` : 'Nueva carrera',
         campos: [
             { nombre: 'codigo', etiqueta: 'Código', maxlength: 20, placeholder: 'DER' },
-            { nombre: 'nombre', etiqueta: 'Nombre', maxlength: 120, placeholder: 'Derecho' },
+            { nombre: 'semestres', etiqueta: 'Duración (semestres)', tipo: 'number', min: 1, max: 12, placeholder: '1 a 12' },
+            { nombre: 'nombre', etiqueta: 'Nombre', maxlength: 120, placeholder: 'Derecho', ancho: 'completo' },
         ],
-        valores: carrera ?? {},
+        valores: carrera ?? { semestres: 10 },
         textoBoton: carrera ? 'Guardar cambios' : 'Crear carrera',
         alGuardar: async (datos) => {
             await api(carrera ? 'PUT' : 'POST', carrera ? `/api/carreras/${carrera.id}` : '/api/carreras',
-                { codigo: datos.codigo, nombre: datos.nombre });
+                { codigo: datos.codigo, nombre: datos.nombre, semestres: Number(datos.semestres) });
             avisar(carrera ? 'Carrera actualizada.' : 'Carrera creada.', 'exito');
             await recargar();
         },
@@ -778,7 +832,10 @@ async function vistaUsuarios() {
             { titulo: 'Usuario', celda: (u) => persona(u.username, u.username === estado.sesion.username ? 'Usted' : null) },
             { titulo: 'Rol', celda: (u) => chip(NOMBRES_ROL[u.rol], tipoRol[u.rol]) },
             { titulo: 'Estado', celda: (u) => chip(u.activo ? 'Activo' : 'Inactivo', u.activo ? 'exito' : 'peligro') },
+            { titulo: 'Verificación en 2 pasos', celda: (u) => (u.dosFactores ? chip('Activa', 'exito') : el('span', { class: 'sutil' }, 'No')) },
             { titulo: '', clase: 'acciones', celda: (u) => [
+                u.dosFactores && u.username !== estado.sesion.username
+                    && boton('Quitar 2FA', () => quitarDosFactores(u), { variante: 'fantasma' }),
                 botonIcono('llave', `Cambiar la contraseña de ${u.username}`, () => formularioContrasenaDe(u)),
                 u.username !== estado.sesion.username && (u.activo
                     ? boton('Desactivar', () => cambiarActivo(u, false), { variante: 'fantasma' })
@@ -843,6 +900,23 @@ async function cambiarActivo(usuario, activo) {
     }
 }
 
+async function quitarDosFactores(usuario) {
+    const aceptar = await confirmar({
+        titulo: 'Quitar la verificación en dos pasos',
+        mensaje: `${usuario.username} podrá ingresar solo con su contraseña (por ejemplo, si perdió el celular). `
+            + 'Después puede volver a activarla desde sus Ajustes.',
+        textoBoton: 'Quitar 2FA', peligro: true,
+    });
+    if (!aceptar) return;
+    try {
+        await api('PATCH', `/api/usuarios/${usuario.id}`, { quitarDosFactores: true });
+        avisar(`Se quitó la verificación en dos pasos de ${usuario.username}.`, 'exito');
+        await recargar();
+    } catch (error) {
+        avisar(error.message, 'error');
+    }
+}
+
 async function eliminarRegistro(ruta, titulo, mensaje) {
     if (!(await confirmar({ titulo, mensaje, textoBoton: 'Eliminar', peligro: true }))) return;
     try {
@@ -859,6 +933,7 @@ async function eliminarRegistro(ruta, titulo, mensaje) {
 async function vistaMisNotas() {
     const notas = await api('GET', '/api/estudiantes/me/calificaciones');
     const valores = notas.map((nota) => nota.nota);
+    if (notas.length) ponerAcciones(botonExcel('Descargar en Excel', '/api/exportar/mis-notas'));
 
     const contenedor = el('div', {}, tabla({
         columnas: [
@@ -978,7 +1053,205 @@ function vistaAjustes() {
             boton('Cambiar mi contraseña', () => formularioMiContrasena(), { iconoNombre: 'candado' })),
     });
 
-    return el('div', { class: 'pila' }, apariencia, cuenta);
+    return el('div', { class: 'pila' }, apariencia, panelSeguridad(), cuenta);
+}
+
+function panelSeguridad() {
+    const activa = Boolean(estado.perfil?.dosFactores);
+    return panel({
+        titulo: 'Verificación en dos pasos',
+        descripcion: 'Además de la contraseña, al ingresar se pide un código de 6 dígitos de Google Authenticator '
+            + '(o Microsoft Authenticator, Authy…). Aunque alguien conozca su contraseña, sin su celular no puede entrar.',
+        acciones: chip(activa ? 'Activada' : 'Desactivada', activa ? 'exito' : 'neutro'),
+        contenido: el('div', { class: 'cuenta' },
+            el('div', { class: 'cuenta__perfil' },
+                el('div', { class: 'dato__icono' }, icono(activa ? 'usuarios' : 'escudo')),
+                el('span', { class: 'sutil' }, activa
+                    ? 'Su cuenta está protegida. Si cambia de celular, desactívela y vuelva a activarla.'
+                    : 'Recomendada para administradores y docentes.')),
+            activa
+                ? boton('Desactivar', () => formularioDesactivarDosFactores(), { iconoNombre: 'candado' })
+                : boton('Activar con Google Authenticator', () => asistenteDosFactores(), { variante: 'primario', iconoNombre: 'celular' })),
+    });
+}
+
+async function asistenteDosFactores() {
+    let datos;
+    try {
+        datos = await api('POST', '/api/perfil/2fa/iniciar');
+    } catch (error) {
+        avisar(error.message, 'error');
+        return;
+    }
+    const clave = datos.secreto.match(/.{1,4}/g).join(' ');
+    abrirFormulario({
+        titulo: 'Activar verificación en dos pasos',
+        antes: el('div', { class: 'dosfa' },
+            el('ol', { class: 'dosfa__pasos' },
+                el('li', {}, 'Instale ', el('strong', {}, 'Google Authenticator'), ' en su celular (Play Store o App Store).'),
+                el('li', {}, 'Toque ', el('strong', {}, '+'), ' → ', el('strong', {}, 'Escanear un código QR'), ' y apunte a este código.'),
+                el('li', {}, 'Escriba abajo el código de 6 dígitos que aparece en la app.')),
+            el('div', { class: 'dosfa__qr' },
+                el('img', { src: datos.qr, alt: 'Código QR para Google Authenticator', width: 184, height: 184 }),
+                el('details', { class: 'dosfa__clave' },
+                    el('summary', {}, '¿No puede escanear? Cargue la clave a mano'),
+                    el('code', {}, clave)))),
+        campos: [{
+            nombre: 'codigo', etiqueta: 'Código de 6 dígitos', ancho: 'completo', placeholder: '000000',
+            inputmode: 'numeric', autocomplete: 'one-time-code', pattern: '\\d{6}', minlength: 6, maxlength: 6,
+            clase: 'entrada-codigo',
+        }],
+        textoBoton: 'Activar',
+        alGuardar: async ({ codigo }) => {
+            await api('POST', '/api/perfil/2fa/activar', { codigo: codigo.trim() });
+            if (estado.perfil) estado.perfil.dosFactores = true;
+            avisar('Verificación en dos pasos activada. La próxima vez se le pedirá el código.', 'exito');
+            await recargar();
+        },
+    });
+}
+
+function formularioDesactivarDosFactores() {
+    abrirFormulario({
+        titulo: 'Desactivar verificación en dos pasos',
+        descripcion: 'Por seguridad, confirme con su contraseña y un código de la app.',
+        campos: [
+            { nombre: 'password', etiqueta: 'Contraseña', tipo: 'password', autocomplete: 'current-password', ancho: 'completo' },
+            { nombre: 'codigo', etiqueta: 'Código de 6 dígitos', ancho: 'completo', placeholder: '000000', inputmode: 'numeric',
+                autocomplete: 'one-time-code', pattern: '\\d{6}', minlength: 6, maxlength: 6, clase: 'entrada-codigo' },
+        ],
+        textoBoton: 'Desactivar',
+        alGuardar: async ({ password, codigo }) => {
+            await api('POST', '/api/perfil/2fa/desactivar', { password, codigo: codigo.trim() });
+            if (estado.perfil) estado.perfil.dosFactores = false;
+            avisar('Verificación en dos pasos desactivada.', 'exito');
+            await recargar();
+        },
+    });
+}
+
+// ======================= Carga masiva (ADMIN) =======================
+
+async function vistaCargaMasiva() {
+    const carreras = await api('GET', '/api/carreras');
+    if (!carreras.length) {
+        return estadoVacio({ iconoNombre: 'carreras', titulo: 'Primero cree una carrera',
+            texto: 'La plantilla se genera por carrera, con filas preparadas para cada uno de sus semestres.',
+            accion: boton('Ir a Carreras', () => ir('carreras'), { variante: 'primario' }) });
+    }
+
+    // Paso 1: plantilla
+    let carreraElegida = String(carreras[0].id);
+    const botonPlantilla = () => botonExcel('Descargar plantilla', `/api/carga-masiva/plantilla?carreraId=${carreraElegida}`, 'primario');
+    const contenedorBoton = el('div', {}, botonPlantilla());
+    const paso1 = panel({
+        titulo: '1. Descargar la plantilla de la carrera',
+        descripcion: 'Un Excel con hojas para Docentes, Materias (con filas listas para cada semestre) y Estudiantes. '
+            + 'Lo ya registrado aparece en gris; las columnas tienen listas desplegables.',
+        contenido: el('div', { class: 'herramientas' },
+            selectorFiltro('Carrera', carreras.map((c) => ({ valor: c.id, texto: `${c.nombre} · ${c.semestres} semestres` })),
+                carreraElegida, (valor) => {
+                    carreraElegida = valor;
+                    contenedorBoton.replaceChildren(botonPlantilla());
+                }),
+            contenedorBoton),
+    });
+
+    // Paso 2: subir, validar e importar
+    const resultado = el('div');
+    const entrada = el('input', { type: 'file', accept: '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', class: 'zona-archivo__entrada' });
+    const textoZona = el('span', { class: 'zona-archivo__texto' }, 'Arrastre aquí la plantilla completa o haga clic para elegirla');
+    const zona = el('label', { class: 'zona-archivo' }, icono('subir', 'icono zona-archivo__icono'), textoZona,
+        el('span', { class: 'sutil' }, 'Archivo .xlsx de hasta 5 MB'), entrada);
+
+    async function procesar(archivo, soloValidar) {
+        if (!archivo) return;
+        textoZona.textContent = archivo.name;
+        zona.classList.add('zona-archivo--cargada');
+        resultado.replaceChildren(el('div', { class: 'panel' }, el('div', { class: 'esqueleto', style: 'width: 60%' })));
+        try {
+            const datos = await subirArchivo(`/api/carga-masiva?soloValidar=${soloValidar}`, archivo);
+            resultado.replaceChildren(resultadoImportacion(datos, () => procesar(archivo, false)));
+            resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (datos.aplicado) avisar(`Carga completada en ${datos.carrera}.`, 'exito');
+        } catch (error) {
+            resultado.replaceChildren(estadoVacio({ iconoNombre: 'alerta', titulo: 'No se pudo procesar el archivo', texto: error.message }));
+        }
+    }
+
+    entrada.addEventListener('change', () => {
+        const archivo = entrada.files[0];
+        entrada.value = ''; // permite volver a elegir el mismo archivo después de corregirlo
+        procesar(archivo, true);
+    });
+    zona.addEventListener('dragover', (evento) => {
+        evento.preventDefault();
+        zona.classList.add('zona-archivo--encima');
+    });
+    zona.addEventListener('dragleave', () => zona.classList.remove('zona-archivo--encima'));
+    zona.addEventListener('drop', (evento) => {
+        evento.preventDefault();
+        zona.classList.remove('zona-archivo--encima');
+        procesar(evento.dataTransfer.files[0], true);
+    });
+
+    const paso2 = panel({
+        titulo: '2. Subir la plantilla completa',
+        descripcion: 'Primero se revisa todo sin guardar nada. Si no hay errores, se confirma la carga. '
+            + 'Si hay un solo error, no se guarda nada: se corrige el Excel y se vuelve a subir.',
+        contenido: zona,
+    });
+
+    return el('div', { class: 'pila' }, paso1, paso2, resultado);
+}
+
+function resultadoImportacion(datos, importar) {
+    const errores = datos.observaciones.filter((o) => o.tipo === 'ERROR');
+    const omitidos = datos.observaciones.filter((o) => o.tipo === 'OMITIDO');
+    const nuevos = datos.docentes + datos.materias + datos.estudiantes;
+    const verbo = datos.aplicado ? 'Creados' : 'A crear';
+
+    let estadoFinal;
+    if (errores.length) {
+        estadoFinal = el('div', { class: 'resultado resultado--error' }, icono('alerta'),
+            el('span', {}, `Hay ${errores.length === 1 ? '1 fila con errores' : errores.length + ' filas con errores'}. `
+                + 'Corríjalas en el Excel y vuelva a subirlo. No se guardó nada.'));
+    } else if (datos.aplicado) {
+        estadoFinal = el('div', { class: 'resultado resultado--ok' }, icono('check'),
+            el('span', {}, nuevos ? `Listo: se cargaron ${nuevos} registros en ${datos.carrera}.` : 'No había nada nuevo para cargar.'));
+    } else {
+        estadoFinal = el('div', { class: 'resultado' }, icono('check'),
+            el('span', {}, nuevos ? 'El archivo está correcto. Revise el resumen y confirme la carga.' : 'El archivo está correcto, pero no tiene filas nuevas.'),
+            nuevos > 0 && boton(`Confirmar e importar ${nuevos} registros`, async (evento) => {
+                evento.currentTarget.disabled = true;
+                await importar();
+            }, { variante: 'primario', iconoNombre: 'subir' }));
+    }
+
+    const tablaObservaciones = (lista) => tabla({
+        columnas: [
+            { titulo: 'Hoja', celda: (o) => o.hoja },
+            { titulo: 'Fila', clase: 'num', celda: (o) => o.fila },
+            { titulo: 'Detalle', celda: (o) => o.mensaje },
+        ],
+        filas: lista,
+    });
+
+    return panel({
+        titulo: `Resultado · ${datos.carrera}`,
+        contenido: el('div', { class: 'pila' },
+            el('div', { class: 'tarjetas' },
+                tarjetaDato({ iconoNombre: 'docentes', titulo: `${verbo}: docentes`, valor: datos.docentes }),
+                tarjetaDato({ iconoNombre: 'materias', titulo: `${verbo}: materias`, valor: datos.materias }),
+                tarjetaDato({ iconoNombre: 'estudiantes', titulo: `${verbo}: estudiantes`, valor: datos.estudiantes }),
+                tarjetaDato({ iconoNombre: 'info', titulo: 'Ya existían (se omiten)', valor: datos.omitidos }),
+                tarjetaDato({ iconoNombre: 'alerta', titulo: 'Filas con errores', valor: datos.errores })),
+            estadoFinal,
+            errores.length > 0 && tablaObservaciones(errores),
+            omitidos.length > 0 && el('details', { class: 'detalles' },
+                el('summary', {}, `Ver ${omitidos.length} filas omitidas porque ya existían`),
+                tablaObservaciones(omitidos))),
+    });
 }
 
 function formularioMiContrasena() {
@@ -1002,6 +1275,7 @@ function formularioMiContrasena() {
 
 alExpirarSesion(() => cerrarSesion('La sesión expiró. Ingrese de nuevo.'));
 $('#form-login').addEventListener('submit', ingresar);
+$('#login-volver').addEventListener('click', () => pasoDeLogin(false));
 $('#boton-salir').addEventListener('click', async () => {
     if (await puedeSalir()) cerrarSesion();
 });
