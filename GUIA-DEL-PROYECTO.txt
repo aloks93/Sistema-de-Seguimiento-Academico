@@ -20,13 +20,29 @@
 --------------------------------------------------------------------------
 1. QUÉ ES ESTE PROYECTO
 --------------------------------------------------------------------------
-Es una API REST (un programa "servidor" sin pantallas) para gestionar las
-calificaciones de los estudiantes:
+Es un sistema para gestionar las calificaciones de los estudiantes. Tiene
+dos partes que corren juntas en el mismo programa:
 
-  - Los DOCENTES y ADMIN pueden registrar y modificar notas (de 0 a 100).
-  - Los ESTUDIANTES pueden consultar sus propias notas.
-  - Todos tienen que iniciar sesión primero; el sistema les da un "token"
-    (JWT) que deben enviar en cada petición para demostrar quiénes son.
+  - Una PÁGINA WEB (http://localhost:8080) con login y pantallas para
+    cargar y consultar todo desde el navegador.
+  - Una API REST (las direcciones /api/...) que es la que guarda y
+    entrega los datos. La página web la usa por detrás.
+
+Cómo está organizado:
+  - Hay CARRERAS (ej.: Informática, Administración, Derecho...).
+  - Cada MATERIA pertenece a una carrera y tiene un DOCENTE a cargo.
+  - Cada ESTUDIANTE pertenece a una carrera.
+  - Un estudiante solo recibe notas de materias de SU carrera.
+
+Quién puede hacer qué:
+  - ADMIN (super usuario) .. crea carreras, docentes y materias, y decide
+                             qué docente está a cargo de cada materia.
+                             Puede hacer todo lo demás también.
+  - DOCENTE ................ agrega y edita estudiantes, y carga notas
+                             SOLO en las materias que tiene a cargo.
+  - ESTUDIANTE ............. ve sus propias notas y su promedio.
+  Todos tienen que iniciar sesión primero; el sistema les da un "token"
+  (JWT) que se envía en cada petición para demostrar quiénes son.
 
 Tecnologías:
   - Java 21 ............... lenguaje de programación
@@ -34,6 +50,8 @@ Tecnologías:
   - Spring Security + JWT . inicio de sesión y permisos por rol
   - Spring Data JPA ....... guarda y lee datos de la base sin escribir SQL
   - PostgreSQL ............ base de datos (corre dentro de Docker)
+  - Flyway ................ crea y actualiza las tablas de la base
+                            automáticamente al arrancar (migraciones)
   - Lombok ................ genera getters/setters/constructores automáticamente
   - Maven ................. descarga librerías y compila (se usa mvnw.cmd,
                             no hace falta instalarlo)
@@ -42,47 +60,130 @@ Tecnologías:
 --------------------------------------------------------------------------
 2. CÓMO PROBARLO RÁPIDO (DOBLE CLIC)
 --------------------------------------------------------------------------
-Abrir la carpeta del proyecto en el Explorador de archivos y:
+El sistema tiene DOS partes que se encienden por separado:
+  - BASE DE DATOS: PostgreSQL, corre dentro de Docker. Guarda todo.
+  - BACKEND: el programa Java. Sirve la página web y la API en
+             http://localhost:8080. Necesita la base de datos encendida.
 
-  Paso 1. Doble clic en  verificar-requisitos.cmd
-          Muestra qué tiene la computadora y qué le falta. Si falta algo,
-          aparece una lista con el link de descarga de cada cosa.
+LO MÁS FÁCIL: abrir la carpeta del proyecto en el Explorador de archivos y
 
-  Paso 2. Doble clic en  iniciar.cmd
-          Vuelve a verificar, levanta la base de datos y arranca la API.
+  Paso 1. Abrir Docker Desktop y esperar a que diga "Engine running".
+
+  Paso 2. Doble clic en  iniciar-todo.cmd
+          Verifica la computadora, enciende la base de datos y el backend.
           La PRIMERA vez tarda varios minutos (descarga librerías).
-          Está lista cuando aparece:
+          Cuando está listo aparece
               Started SeguimientoAcademicoApplication
-          NO cerrar esa ventana mientras se usa la API.
-          Para apagarla: Ctrl + C dentro de la ventana.
+          y SE ABRE SOLO EL NAVEGADOR en http://localhost:8080
+          NO cerrar esa ventana mientras se usa el sistema.
+          Para apagarlo: Ctrl + C dentro de la ventana.
 
-  Paso 3. Con la ventana de iniciar.cmd abierta, doble clic en
-          probar-api.cmd
-          Inicia sesión como docente, registra una nota, inicia sesión
-          como estudiante, muestra sus notas y comprueba que un estudiante
-          NO pueda registrar notas. Si todo sale bien dice:
-              === La API funciona correctamente ===
+  Paso 3. En el navegador, ingresar con un usuario de la tabla de abajo
+          (ver "CÓMO USAR LA PÁGINA WEB" más abajo).
 
-  Extra.  Doble clic en  ejecutar-tests.cmd
-          Corre los tests automáticos. Solo necesita Java (no Docker).
+O doble clic en  MENU.cmd  que muestra todas las opciones con números:
 
-También se pueden ejecutar desde la terminal de VS Code (estando en la
-carpeta del proyecto):
-    .\verificar-requisitos.cmd
-    .\iniciar.cmd
-    .\probar-api.cmd
-    .\ejecutar-tests.cmd
+    INICIAR    1  Iniciar TODO (base de datos + backend + página web)
+               2  Iniciar solo la base de datos
+               3  Iniciar solo el backend
+               4  Abrir la página web
+    REVISAR    5  Ver estado (qué está encendido)
+               6  Verificar requisitos de la computadora
+               7  Probar la API
+               8  Ejecutar los tests automáticos
+    DETENER    9  Detener el backend
+              10  Detener la base de datos
+              11  Detener TODO
+              12  BORRAR la base de datos (empezar de cero, pide confirmación)
+
+Cada opción también tiene su propio archivo en la carpeta  comandos\ :
+
+  verificar-requisitos.cmd .. qué tiene la PC y qué le falta (con links
+                              de descarga de cada cosa).
+  iniciar-base-de-datos.cmd . enciende SOLO PostgreSQL (Docker).
+  iniciar-backend.cmd ....... enciende SOLO el backend. Si la base está
+                              apagada avisa y no arranca.
+  abrir-pagina-web.cmd ...... abre http://localhost:8080 (si el backend
+                              está encendido).
+  estado.cmd ................ muestra Docker / base de datos / backend:
+                              encendido o apagado.
+  probar-api.cmd ............ prueba la API sin navegador: login de
+                              docente, registra una nota, login de
+                              estudiante, muestra sus notas y comprueba
+                              que un estudiante NO pueda registrar notas.
+                              Termina con "La API funciona correctamente".
+  ejecutar-tests.cmd ........ tests automáticos (solo necesita Java).
+  detener-backend.cmd ....... apaga el backend.
+  detener-base-de-datos.cmd . apaga la base (los datos se conservan).
+  detener-todo.cmd .......... apaga las dos cosas.
+  borrar-base-de-datos.cmd .. BORRA todos los datos. Hay que escribir
+                              BORRAR para confirmar. Al iniciar de nuevo
+                              se crea vacía con los datos de ejemplo.
+
+Ejemplo, trabajando por partes:
+  comandos\iniciar-base-de-datos.cmd   -> se enciende la base
+  comandos\iniciar-backend.cmd         -> se enciende el backend
+  comandos\abrir-pagina-web.cmd        -> se abre el navegador
+  ... usar el sistema ...
+  comandos\detener-todo.cmd            -> se apaga todo
+
+Desde la terminal de VS Code (estando en la carpeta del proyecto):
+    .\MENU.cmd
+    .\iniciar-todo.cmd
+    .\comandos\estado.cmd
+    .\comandos\iniciar-backend.cmd      (y así con los demás)
 
 Usuarios de ejemplo (se crean solos la primera vez):
     Usuario      Contraseña      Rol
-    admin        admin123        ADMIN
-    docente      docente123      DOCENTE
-    estudiante   estudiante123   ESTUDIANTE (matrícula 2026-0001)
+    admin        admin123        ADMIN (super usuario)
+    docente      docente123      DOCENTE (a cargo de las materias INF)
+    estudiante   estudiante123   ESTUDIANTE (matrícula 2026-0001, Informática)
 
-Materias de ejemplo:
-    id 1 = INF-101 Programación I
-    id 2 = INF-102 Matemática Discreta
-    id 3 = INF-201 Base de Datos I
+Datos de ejemplo:
+    Carreras: INF Ingeniería en Informática, ADM Administración de Empresas
+    Materias: id 1 = INF-101 Programación I
+              id 2 = INF-102 Matemática Discreta
+              id 3 = INF-201 Base de Datos I
+              id 4 = ADM-101 Contabilidad I (sin docente asignado)
+
+CÓMO USAR LA PÁGINA WEB
+  Entrando como admin (admin / admin123) hay 6 pestañas:
+
+  Carreras .... código y nombre -> "Crear carrera". La tabla muestra
+                cuántas materias y estudiantes tiene cada una. Solo se
+                puede eliminar una carrera vacía.
+  Docentes .... nombre completo, usuario y contraseña -> "Crear docente".
+                Con ese usuario el profesor entra al sistema. La tabla
+                muestra las materias que tiene a cargo.
+  Materias .... código, nombre, carrera, semestre, créditos y DOCENTE A
+                CARGO -> "Crear materia". Para cambiar el profesor de una
+                materia: Editar y elegir otro docente.
+  Estudiantes . nombre, matrícula, carrera, usuario y contraseña ->
+                "Crear estudiante". Se puede filtrar por carrera.
+  Notas ....... elegir la materia (aparecen solo los estudiantes de esa
+                carrera), el estudiante y la nota (0 a 100) -> "Guardar
+                nota". Si ya tenía nota en esa materia, pregunta si se
+                quiere reemplazar.
+  Usuarios .... crear otros administradores, cambiar contraseñas de
+                cualquiera y Desactivar (ya no puede entrar) / Activar.
+
+  Orden recomendado para cargar todo desde cero (como admin):
+      1) Carreras  2) Docentes  3) Materias (asignando el docente)
+  Después cada docente entra con su usuario y hace:
+      4) Estudiantes  5) Notas
+
+  Entrando como DOCENTE hay 3 pestañas:
+      Notas ......... carga notas solo de SUS materias (si todavía no
+                      tiene materias, aparece un aviso para pedírselas
+                      al administrador).
+      Estudiantes ... agrega y edita estudiantes (no puede eliminarlos).
+      Mis materias .. las materias que tiene a cargo.
+
+  Entrando como ESTUDIANTE se ve "Mis notas": cada materia con su docente,
+  la nota y el promedio.
+
+  Los datos quedan guardados en la base de datos: al apagar y volver a
+  iniciar el sistema, todo lo cargado sigue ahí.
 
 
 --------------------------------------------------------------------------
@@ -98,7 +199,7 @@ Materias de ejemplo:
       https://www.docker.com/products/docker-desktop/
       o en PowerShell:  winget install Docker.DockerDesktop
       Después de instalar: reiniciar la PC y ABRIR Docker Desktop antes
-      de usar iniciar.cmd (tiene que estar abierto, no solo instalado).
+      de usar iniciar-todo.cmd (tiene que estar abierto, no solo instalado).
       Alternativa sin Docker: instalar PostgreSQL y crear la base
       "seguimiento_academico" con usuario "upe" y contraseña "upe".
 
@@ -118,11 +219,14 @@ de terminal y volver a abrirlas (si no, Windows no "ve" el programa nuevo).
 --------------------------------------------------------------------------
 4. ARCHIVOS DE LA CARPETA PRINCIPAL
 --------------------------------------------------------------------------
-  verificar-requisitos.cmd  Revisa qué tiene instalado la PC y qué falta.
-  iniciar.cmd               Verifica, levanta la base de datos y arranca la API.
-  probar-api.cmd            Prueba automática de la API ya iniciada.
-  ejecutar-tests.cmd        Corre los tests automáticos.
-  scripts\                  El código (PowerShell) de los cuatro .cmd de arriba.
+  MENU.cmd                  Menú con todas las opciones (ver sección 2).
+  iniciar-todo.cmd          Verifica, levanta la base de datos, arranca el
+                            backend y abre la página en el navegador.
+  comandos\                 Un .cmd por cada acción: iniciar/detener la base
+                            o el backend, estado, probar API, tests, borrar
+                            la base... (ver sección 2).
+  scripts\                  El código (PowerShell) que ejecutan esos .cmd.
+                            comun.ps1 tiene las funciones compartidas.
 
   GUIA-DEL-PROYECTO.txt     Este archivo.
   README.md                 Documentación técnica (se ve linda en GitHub).
@@ -169,40 +273,64 @@ trabajo distinto:
 
   controller\  -> RECIBE las peticiones HTTP y devuelve respuestas JSON.
                   No tiene lógica: solo llama al service.
-      AuthController ............ POST /api/auth/login
-      CalificacionController .... POST /api/calificaciones (registrar nota)
-                                  PATCH /api/calificaciones/{id} (modificar)
-      EstudianteController ...... GET /api/estudiantes/me/calificaciones
-                                  (el estudiante ve sus notas)
+      AuthController ............ login
+      CalificacionController .... listar, registrar, modificar y eliminar notas
+      EstudianteController ...... listar, crear, editar y eliminar estudiantes,
+                                  y "mis notas" del estudiante
+      MateriaController ......... listar, crear, editar y eliminar materias
+      CarreraController ......... listar, crear, editar y eliminar carreras
+      DocenteController ......... listar, crear, editar y eliminar docentes
+      UsuarioController ......... listar usuarios, crear administradores,
+                                  activar/desactivar y cambiar contraseñas
 
   service\     -> LÓGICA DE NEGOCIO: las reglas del sistema.
       AuthService ............... Comprueba usuario y contraseña y genera el
                                   token JWT.
-      CalificacionService ....... Registrar nota (verifica que existan el
-                                  estudiante y la materia, y que no haya ya
-                                  una nota para esa materia), modificar nota
-                                  y listar las notas de un estudiante.
+      CalificacionService ....... Registrar, modificar, eliminar y listar
+                                  notas. Reglas: el DOCENTE solo opera en
+                                  las materias que tiene a cargo (y solo ve
+                                  esas notas); el estudiante tiene que ser de
+                                  la carrera de la materia; una sola nota
+                                  por estudiante y materia.
+      EstudianteService ......... Crea el estudiante junto con su usuario
+                                  (contraseña cifrada); no deja repetir
+                                  matrícula ni usuario, ni borrar a quien
+                                  tiene notas, ni cambiarlo de carrera si
+                                  ya tiene notas.
+      DocenteService ............ Crea el docente junto con su usuario; no
+                                  deja borrar a quien tiene materias a cargo.
+      MateriaService ............ Asigna carrera y docente; no deja repetir
+                                  código ni borrar materias con notas.
+      CarreraService ............ No deja repetir código ni nombre, ni borrar
+                                  carreras con materias o estudiantes.
+      UsuarioService ............ Crea administradores; un admin no puede
+                                  desactivarse a sí mismo.
 
   repository\  -> ACCESO A LA BASE DE DATOS. Son interfaces: Spring Data
                   JPA escribe el SQL automáticamente según el nombre del
                   método.
-      UsuarioRepository, EstudianteRepository,
-      MateriaRepository, CalificacionRepository
+      UsuarioRepository, DocenteRepository, EstudianteRepository,
+      CarreraRepository, MateriaRepository, CalificacionRepository
 
   entity\      -> Clases que representan las TABLAS de la base de datos.
       Usuario ......... tabla usuarios (username, contraseña cifrada, rol)
+      Docente ......... tabla docentes (nombre completo; enlazado a su usuario)
       Estudiante ...... tabla estudiantes (matrícula, nombre, carrera)
-      Materia ......... tabla materias (código, nombre, créditos, semestre)
+      Carrera ......... tabla carreras (código, nombre)
+      Materia ......... tabla materias (código, nombre, créditos, semestre,
+                        carrera y docente a cargo)
       Calificacion .... tabla calificaciones (nota de 0 a 100, fechas)
       Rol ............. lista fija de roles: ADMIN, DOCENTE, ESTUDIANTE
 
   dto\         -> Objetos que ENTRAN y SALEN por la API (Data Transfer
                   Objects). Se usan para no exponer las entidades
                   directamente y para validar los datos recibidos.
+                  Por cada cosa hay un ...Request (lo que llega) y un
+                  ...Response (lo que se devuelve), por ejemplo:
       LoginRequest / LoginResponse ............ datos del login y el token
-      CalificacionRequest ..................... datos para registrar nota
-      CalificacionUpdateRequest ............... datos para modificar nota
-      CalificacionResponse .................... nota que devuelve la API
+      CalificacionRequest / ...Response ....... registrar nota / nota devuelta
+      MateriaRequest / MateriaResponse ........ materia con carrera y docente
+      DocenteRequest / DocenteResponse ........ docente con sus materias
 
   security\    -> INICIO DE SESIÓN Y PERMISOS.
       SecurityConfig ............ Define qué rol puede usar cada ruta y
@@ -219,23 +347,47 @@ trabajo distinto:
   exception\   -> MANEJO DE ERRORES.
       RecursoNoEncontradoException ... se lanza cuando algo no existe (404)
       ConflictoException ............. se lanza ante duplicados (409)
+      OperacionNoPermitidaException .. un docente quiere operar en una
+                                       materia que no es suya (403)
       GlobalExceptionHandler ......... atrapa todos los errores y los
                                        convierte en respuestas JSON claras
                                        (formato estándar RFC 7807).
 
   config\
-      DataSeeder ................ Carga los usuarios y materias de ejemplo
-                                  la primera vez (solo en modo desarrollo).
+      DataSeeder ................ Carga carreras, usuarios y materias de
+                                  ejemplo la primera vez (solo en modo
+                                  desarrollo).
+
+Página web (src\main\resources\static\):
+  index.html .............. estructura de todas las pantallas (login,
+                            notas, estudiantes, materias, docentes,
+                            carreras, usuarios, mis notas).
+  css\estilos.css ......... colores y diseño (se adapta a celular y a modo
+                            oscuro).
+  js\app.js ............... lógica de la página: inicia sesión, guarda el
+                            token, llama a la API con fetch() y dibuja las
+                            tablas y formularios según el rol.
+  Spring Boot sirve estos archivos solo; no hace falta instalar nada más.
 
 Configuración (src\main\resources\):
   application.yml ......... configuración general (base de datos, puerto
                             8080, JWT). Lee valores de variables de entorno.
   application-dev.yml ..... modo desarrollo (el que se usa por defecto):
-                            crea las tablas solas, muestra el SQL y carga
-                            datos de ejemplo.
+                            muestra el SQL y carga datos de ejemplo.
+  db\migration\ ........... MIGRACIONES: archivos SQL numerados que crean
+                            y actualizan las tablas. Al arrancar, Flyway
+                            aplica solo los que faltan en esa base.
+      V1__esquema_inicial.sql ....... tablas originales
+      V2__carreras_y_docentes.sql ... agrega carreras y docentes y CONVIERTE
+                                      los datos viejos (no se pierde nada)
+    Para cambiar la estructura de la base: crear un archivo NUEVO
+    (V3__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
 
 Tests (src\test\):
-  CalificacionApiIntegrationTest.java ... tests de toda la API (sección 9).
+  CalificacionApiIntegrationTest.java ... login, permisos y notas (sección 9).
+  GestionApiIntegrationTest.java ........ carreras, docentes, materias,
+                                          estudiantes, usuarios, permisos
+                                          de cada rol y la página web.
   application-test.yml .................. usa una base H2 en memoria.
 
 
@@ -250,7 +402,8 @@ Ejemplo: un docente registra una nota.
   4. SecurityConfig comprueba que el rol DOCENTE puede usar esa ruta.
   5. CalificacionController recibe el JSON y valida (nota entre 0 y 100).
   6. CalificacionService aplica las reglas (¿existe el estudiante? ¿la
-     materia? ¿ya tiene nota?).
+     materia? ¿la materia es de ESTE docente? ¿el estudiante es de la
+     carrera de la materia? ¿ya tiene nota?).
   7. CalificacionRepository guarda la nota en PostgreSQL.
   8. Se devuelve la nota creada como JSON con código 201 Created.
   Si algo falla en cualquier paso, GlobalExceptionHandler responde con el
@@ -263,16 +416,42 @@ Ejemplo: un docente registra una nota.
   Método  Ruta                                 Quién puede
   POST    /api/auth/login                      cualquiera
   GET     /api/estudiantes/me/calificaciones   ESTUDIANTE
-  POST    /api/calificaciones                  DOCENTE, ADMIN
-  PATCH   /api/calificaciones/{id}             DOCENTE, ADMIN
+  GET     /api/calificaciones                  DOCENTE*, ADMIN  (filtros:
+                                               ?estudianteId=1&materiaId=2)
+  POST    /api/calificaciones                  DOCENTE*, ADMIN
+  PATCH   /api/calificaciones/{id}             DOCENTE*, ADMIN
+  DELETE  /api/calificaciones/{id}             DOCENTE*, ADMIN
+  GET     /api/estudiantes  (?carreraId=1)     DOCENTE, ADMIN
+  POST    /api/estudiantes                     DOCENTE, ADMIN
+  PUT     /api/estudiantes/{id}                DOCENTE, ADMIN
+  DELETE  /api/estudiantes/{id}                ADMIN
+  GET     /api/materias     (?carreraId=1)     DOCENTE, ADMIN
+  POST    /api/materias                        ADMIN
+  PUT     /api/materias/{id}                   ADMIN
+  DELETE  /api/materias/{id}                   ADMIN
+  GET     /api/carreras                        DOCENTE, ADMIN
+  POST    /api/carreras                        ADMIN
+  PUT     /api/carreras/{id}                   ADMIN
+  DELETE  /api/carreras/{id}                   ADMIN
+  GET     /api/docentes                        ADMIN
+  POST    /api/docentes                        ADMIN
+  PUT     /api/docentes/{id}                   ADMIN
+  DELETE  /api/docentes/{id}                   ADMIN
+  GET     /api/usuarios                        ADMIN
+  POST    /api/usuarios   (crea un ADMIN)      ADMIN
+  PATCH   /api/usuarios/{id}                   ADMIN
+  * el DOCENTE solo en las materias que tiene a cargo.
 
 Códigos de respuesta:
-  200/201  todo bien
+  200/201/204  todo bien
   400      datos inválidos (ej.: nota 150)
   401      sin token, token vencido o contraseña incorrecta
-  403      el rol no tiene permiso (ej.: estudiante registrando notas)
-  404      no existe el estudiante, la materia o la nota
-  409      ese estudiante ya tiene nota en esa materia
+  403      el rol no tiene permiso (ej.: estudiante registrando notas, o
+           docente cargando notas en una materia que no es suya)
+  404      no existe lo que se pide
+  409      algo repetido (nota en la misma materia, matrícula, código,
+           usuario), materia de otra carrera que la del estudiante, o se
+           intenta borrar algo que está en uso
 
 Probar a mano desde PowerShell (con la API iniciada):
 
@@ -296,17 +475,28 @@ VS Code.
 --------------------------------------------------------------------------
 8. BASE DE DATOS
 --------------------------------------------------------------------------
+  carreras (id, codigo, nombre)
+     |-- 1 a muchos -- estudiantes (id, usuario_id, matricula,
+     |                              nombre_completo, carrera_id)
+     |-- 1 a muchos -- materias (id, codigo, nombre, creditos, semestre,
+                                 carrera_id, docente_id)
+
   usuarios (id, username, password_hash, rol, activo)
-     | 1 a 1
-  estudiantes (id, usuario_id, matricula, nombre_completo, carrera)
-     | 1 a muchos
+     |-- 1 a 1 -- estudiantes.usuario_id
+     |-- 1 a 1 -- docentes (id, usuario_id, nombre_completo)
+                     |-- 1 a muchos -- materias.docente_id (docente a cargo)
+
   calificaciones (id, estudiante_id, materia_id, nota, fecha_registro,
                   fecha_actualizacion)
-     | muchos a 1
-  materias (id, codigo, nombre, creditos, semestre)
 
-  Reglas: un estudiante tiene UNA sola nota por materia, y la nota va de
-  0 a 100. Las contraseñas se guardan cifradas (BCrypt), nunca en texto.
+  Reglas: un estudiante tiene UNA sola nota por materia, la nota va de
+  0 a 100, y solo puede tener notas de materias de su carrera. Las
+  contraseñas se guardan cifradas (BCrypt), nunca en texto.
+
+  Las tablas las crea y actualiza Flyway con los archivos de
+  src\main\resources\db\migration (ver sección 5). Si alguien tenía la
+  base de una versión anterior, al iniciar se convierte sola sin perder
+  datos.
 
 Comandos útiles (terminal en la carpeta del proyecto):
   docker compose up -d       levantar la base de datos
@@ -318,7 +508,8 @@ Comandos útiles (terminal en la carpeta del proyecto):
 --------------------------------------------------------------------------
 9. TESTS
 --------------------------------------------------------------------------
-  Doble clic en ejecutar-tests.cmd   (o en la terminal: .\mvnw.cmd test)
+  Doble clic en comandos\ejecutar-tests.cmd, opción 8 del MENU.cmd,
+  o en la terminal: .\mvnw.cmd test
 
   Comprueban, entre otras cosas, que:
   - el login devuelve un token y las contraseñas se guardan cifradas
@@ -329,8 +520,19 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - una nota fuera de 0-100 da 400
   - una nota duplicada da 409
   - modificar una nota que no existe da 404
+  - el admin gestiona carreras y docentes; el docente no puede
+  - el admin asigna docentes a materias
+  - el docente agrega y edita estudiantes, pero no los elimina
+  - el docente SOLO califica sus materias (403 en las de otro docente o
+    sin docente) y solo ve las notas de sus materias
+  - no se pone nota de una materia de otra carrera (409)
+  - no se repiten matrículas, códigos ni usuarios (409)
+  - no se borran carreras, docentes, estudiantes ni materias en uso (409)
+  - las notas se filtran por estudiante y por materia
+  - un usuario desactivado ya no puede entrar
+  - la página web se sirve sin necesidad de token
 
-  Al final debe decir BUILD SUCCESS.
+  Al final debe decir BUILD SUCCESS (17 tests, 0 fallos).
 
 
 --------------------------------------------------------------------------
@@ -346,12 +548,20 @@ Comandos útiles (terminal en la carpeta del proyecto):
       Java no es la versión 21 o JAVA_HOME apunta mal. Instalar Java 21
       marcando "Set JAVA_HOME variable" y reabrir la terminal.
 
+  No sé qué está encendido y qué no
+      comandos\estado.cmd (u opción 5 del MENU.cmd) lo muestra.
+
   "Connection to localhost:5432 refused"
-      La base de datos no está levantada: abrir Docker Desktop y volver a
-      ejecutar iniciar.cmd.
+      La base de datos está apagada: abrir Docker Desktop y ejecutar
+      comandos\iniciar-base-de-datos.cmd (o iniciar-todo.cmd).
+
+  "El puerto 5432 lo usa el contenedor '...' de otro proyecto"
+      Otro proyecto tiene su base encendida en el mismo puerto. Apagarla
+      con el comando que muestra el mensaje (docker stop ...).
 
   "Port 8080 was already in use"
-      La API ya está abierta en otra ventana. Cerrarla (Ctrl + C) primero.
+      El backend ya está abierto en otra ventana. Cerrarla (Ctrl + C) o
+      usar comandos\detener-backend.cmd.
 
   "La ejecución de scripts está deshabilitada en este sistema"
       Usar los archivos .cmd (doble clic): ya ejecutan los scripts con el
@@ -360,9 +570,20 @@ Comandos útiles (terminal en la carpeta del proyecto):
   Docker Desktop no arranca / pide WSL
       En PowerShell como administrador:  wsl --install   y reiniciar la PC.
 
+  La página dice "No se pudo conectar con el servidor"
+      Se cerró la ventana del backend. Volver a ejecutar iniciar-todo.cmd
+      (o comandos\iniciar-backend.cmd).
+
+  La página vuelve sola al login
+      El token dura 8 horas; al vencer hay que ingresar de nuevo.
+
   probar-api.cmd dice "No se pudo conectar"
-      Primero iniciar.cmd y esperar a que diga
+      Primero iniciar-todo.cmd y esperar a que diga
       "Started SeguimientoAcademicoApplication".
+
+  Quiero empezar con la base vacía
+      comandos\detener-backend.cmd y después
+      comandos\borrar-base-de-datos.cmd (escribir BORRAR para confirmar).
 
 
 --------------------------------------------------------------------------
