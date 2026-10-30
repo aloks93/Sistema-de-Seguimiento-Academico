@@ -27,6 +27,11 @@ public class GlobalExceptionHandler {
         return problema(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
     }
 
+    @ExceptionHandler(DatoInvalidoException.class)
+    public ProblemDetail handleDatoInvalido(DatoInvalidoException ex) {
+        return problema(HttpStatus.BAD_REQUEST, "Datos inválidos", ex.getMessage());
+    }
+
     @ExceptionHandler(OperacionNoPermitidaException.class)
     public ProblemDetail handleNoPermitida(OperacionNoPermitidaException ex) {
         return problema(HttpStatus.FORBIDDEN, "Operación no permitida", ex.getMessage());

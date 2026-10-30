@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +18,10 @@ import py.edu.upe.hernandarias.dto.CarreraRequest;
 import py.edu.upe.hernandarias.dto.CarreraResponse;
 import py.edu.upe.hernandarias.service.CarreraService;
 
-/** Consulta (DOCENTE, ADMIN) y gestión (solo ADMIN) de carreras, ver SecurityConfig. */
+/**
+ * Consulta (DOCENTE: solo sus carreras; ADMIN: todas) y gestión (solo ADMIN) de carreras,
+ * ver SecurityConfig.
+ */
 @RestController
 @RequestMapping("/api/carreras")
 @RequiredArgsConstructor
@@ -26,8 +30,8 @@ public class CarreraController {
     private final CarreraService carreraService;
 
     @GetMapping
-    public List<CarreraResponse> listar() {
-        return carreraService.listar();
+    public List<CarreraResponse> listar(Authentication authentication) {
+        return carreraService.listar(authentication.getName());
     }
 
     @PostMapping

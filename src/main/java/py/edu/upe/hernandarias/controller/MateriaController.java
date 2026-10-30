@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +19,10 @@ import py.edu.upe.hernandarias.dto.MateriaRequest;
 import py.edu.upe.hernandarias.dto.MateriaResponse;
 import py.edu.upe.hernandarias.service.MateriaService;
 
-/** Consulta (DOCENTE, ADMIN) y gestión (solo ADMIN) de materias, ver SecurityConfig. */
+/**
+ * Consulta (DOCENTE: solo las que tiene a cargo; ADMIN: todas) y gestión (solo ADMIN) de materias,
+ * ver SecurityConfig.
+ */
 @RestController
 @RequestMapping("/api/materias")
 @RequiredArgsConstructor
@@ -27,8 +31,9 @@ public class MateriaController {
     private final MateriaService materiaService;
 
     @GetMapping
-    public List<MateriaResponse> listar(@RequestParam(required = false) Long carreraId) {
-        return materiaService.listar(carreraId);
+    public List<MateriaResponse> listar(@RequestParam(required = false) Long carreraId,
+                                        Authentication authentication) {
+        return materiaService.listar(carreraId, authentication.getName());
     }
 
     @PostMapping

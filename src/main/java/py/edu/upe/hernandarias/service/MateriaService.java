@@ -24,13 +24,24 @@ public class MateriaService {
     private final CarreraRepository carreraRepository;
     private final DocenteRepository docenteRepository;
     private final CalificacionRepository calificacionRepository;
+    private final PermisosService permisosService;
 
-    /** Todas las materias, o solo las de una carrera si {@code carreraId} no es null. */
+    /**
+     * Para un ADMIN, todas las materias (o las de una carrera si {@code carreraId} no es null);
+     * para un docente, solo las que tiene a cargo.
+     */
     @Transactional(readOnly = true)
-    public List<MateriaResponse> listar(Long carreraId) {
-        List<Materia> materias = carreraId == null
-                ? materiaRepository.findAllByOrderBySemestreAscNombreAsc()
-                : materiaRepository.findByCarreraIdOrderBySemestreAscNombreAsc(carreraId);
+    public List<MateriaResponse> listar(Long carreraId, String username) {
+        List<Materia> materias;
+        if (!permisosService.esAdmin(username)) {
+            materias = materiaRepository.findByDocenteUsuarioUsernameOrderBySemestreAscNombreAsc(username).stream()
+                    .filter(materia -> carreraId == null || materia.getCarrera().getId().equals(carreraId))
+                    .toList();
+        } else if (carreraId == null) {
+            materias = materiaRepository.findAllByOrderBySemestreAscNombreAsc();
+        } else {
+            materias = materiaRepository.findByCarreraIdOrderBySemestreAscNombreAsc(carreraId);
+        }
         return materias.stream().map(MateriaResponse::from).toList();
     }
 

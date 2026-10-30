@@ -97,10 +97,14 @@ class GestionApiIntegrationTest {
                 .andExpect(jsonPath("$.nombre").value("Lic. en Administración"));
 
         crearMateria("INF-101", informatica, profe);
+        mockMvc.perform(conToken(get("/api/carreras"), tokenAdmin))
+                .andExpect(jsonPath("$.length()").value(2));
+        // El docente solo ve las carreras donde tiene materias a cargo
         mockMvc.perform(conToken(get("/api/carreras"), tokenProfe))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.codigo == 'INF')].materias").value(1));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].codigo").value("INF"))
+                .andExpect(jsonPath("$[0].materias").value(1));
 
         mockMvc.perform(conToken(post("/api/carreras"), tokenProfe)
                         .content("{\"codigo\":\"DER\",\"nombre\":\"Derecho\"}"))
@@ -122,9 +126,13 @@ class GestionApiIntegrationTest {
                 .andExpect(jsonPath("$[0].nombreCompleto").value("Carlos Benítez"))
                 .andExpect(jsonPath("$[0].materias.length()").value(2));
 
+        crearMateria("INF-301", informatica, crearDocente("profe2", "Marta Ríos"));
         mockMvc.perform(conToken(get("/api/materias?carreraId=" + informatica), tokenProfe))
+                .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].docenteUsername").value("profe"))
                 .andExpect(jsonPath("$[0].carreraCodigo").value("INF"));
+        mockMvc.perform(conToken(get("/api/materias"), tokenAdmin))
+                .andExpect(jsonPath("$.length()").value(3));
 
         mockMvc.perform(conToken(get("/api/docentes"), tokenProfe))
                 .andExpect(status().isForbidden());
@@ -137,22 +145,36 @@ class GestionApiIntegrationTest {
     }
 
     @Test
-    void docenteAgregaYEditaEstudiantesPeroNoLosElimina() throws Exception {
+    void docenteSoloGestionaEstudiantesDeSusCarreras() throws Exception {
+        crearMateria("INF-101", informatica, profe);
         long lucia = crearEstudiante(tokenProfe, "lucia", "2026-0100", informatica);
-        crearEstudiante(tokenProfe, "pedro", "2026-0200", administracion);
+        long pedro = crearEstudiante(tokenAdmin, "pedro", "2026-0200", administracion);
 
+        // No crea ni edita estudiantes de una carrera donde no enseña, ni pasa los suyos a otra
+        mockMvc.perform(conToken(post("/api/estudiantes"), tokenProfe)
+                        .content(estudianteJson("otro", "2026-0300", administracion)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(conToken(put("/api/estudiantes/" + pedro), tokenProfe)
+                        .content(estudianteUpdateJson("2026-0200", administracion, null)))
+                .andExpect(status().isForbidden());
         mockMvc.perform(conToken(put("/api/estudiantes/" + lucia), tokenProfe)
-                        .content("""
-                                {"matricula":"2026-0101","nombreCompleto":"Lucía G. Gómez",
-                                 "carreraId":%d,"password":"nueva123"}""".formatted(informatica)))
+                        .content(estudianteUpdateJson("2026-0100", administracion, null)))
+                .andExpect(status().isForbidden());
+
+        // Solo ve los de sus carreras; el ADMIN ve todos
+        mockMvc.perform(conToken(get("/api/estudiantes"), tokenProfe))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].username").value("lucia"));
+        mockMvc.perform(conToken(get("/api/estudiantes"), tokenAdmin))
+                .andExpect(jsonPath("$.length()").value(2));
+
+        // Edita los suyos (incluida la contraseña) pero no los elimina
+        mockMvc.perform(conToken(put("/api/estudiantes/" + lucia), tokenProfe)
+                        .content(estudianteUpdateJson("2026-0101", informatica, "nueva123")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matricula").value("2026-0101"))
                 .andExpect(jsonPath("$.carreraNombre").value("Ingeniería en Informática"));
         login("lucia", "nueva123");
-
-        mockMvc.perform(conToken(get("/api/estudiantes?carreraId=" + administracion), tokenProfe))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].username").value("pedro"));
 
         mockMvc.perform(conToken(post("/api/estudiantes"), tokenProfe)
                         .content(estudianteJson("otro", "2026-0101", informatica)))
@@ -162,6 +184,19 @@ class GestionApiIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(conToken(delete("/api/estudiantes/" + lucia), tokenAdmin))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void docenteSinMateriasNoVeNiGestionaNada() throws Exception {
+        crearMateria("INF-101", informatica, crearDocente("profe2", "Marta Ríos"));
+        crearEstudiante(tokenAdmin, "lucia", "2026-0100", informatica);
+
+        mockMvc.perform(conToken(get("/api/carreras"), tokenProfe)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(conToken(get("/api/materias"), tokenProfe)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(conToken(get("/api/estudiantes"), tokenProfe)).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(conToken(post("/api/estudiantes"), tokenProfe)
+                        .content(estudianteJson("otro", "2026-0300", informatica)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -309,6 +344,12 @@ class GestionApiIntegrationTest {
         return """
                 {"username":"%s","password":"clave123","matricula":"%s",
                  "nombreCompleto":"Estudiante %s","carreraId":%d}""".formatted(username, matricula, username, carreraId);
+    }
+
+    private static String estudianteUpdateJson(String matricula, long carreraId, String password) {
+        return """
+                {"matricula":"%s","nombreCompleto":"Estudiante %s","carreraId":%d,"password":%s}"""
+                .formatted(matricula, matricula, carreraId, password == null ? "null" : "\"" + password + "\"");
     }
 
     private static MockHttpServletRequestBuilder conToken(MockHttpServletRequestBuilder peticion, String token) {

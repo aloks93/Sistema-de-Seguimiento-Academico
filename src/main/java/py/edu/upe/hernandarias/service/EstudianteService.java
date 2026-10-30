@@ -1,6 +1,7 @@
 package py.edu.upe.hernandarias.service;
 
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,19 +30,33 @@ public class EstudianteService {
     private final UsuarioRepository usuarioRepository;
     private final CalificacionRepository calificacionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PermisosService permisosService;
 
-    /** Todos los estudiantes, o solo los de una carrera si {@code carreraId} no es null. */
+    /**
+     * Estudiantes (opcionalmente de una carrera). Un docente solo ve los de las carreras
+     * donde tiene materias a cargo.
+     */
     @Transactional(readOnly = true)
-    public List<EstudianteResponse> listar(Long carreraId) {
+    public List<EstudianteResponse> listar(Long carreraId, String usernameActual) {
         List<Estudiante> estudiantes = carreraId == null
                 ? estudianteRepository.findAllByOrderByNombreCompletoAsc()
                 : estudianteRepository.findByCarreraIdOrderByNombreCompletoAsc(carreraId);
+        if (!permisosService.esAdmin(usernameActual)) {
+            Set<Long> propias = permisosService.carrerasDelDocente(usernameActual);
+            estudiantes = estudiantes.stream()
+                    .filter(estudiante -> propias.contains(estudiante.getCarrera().getId()))
+                    .toList();
+        }
         return estudiantes.stream().map(EstudianteResponse::from).toList();
     }
 
-    /** Crea el estudiante y su usuario con rol ESTUDIANTE para que pueda consultar sus notas. */
+    /**
+     * Crea el estudiante y su usuario con rol ESTUDIANTE para que pueda consultar sus notas.
+     * Un docente solo puede crearlo en una carrera donde tiene materias a cargo.
+     */
     @Transactional
-    public EstudianteResponse crear(EstudianteRequest request) {
+    public EstudianteResponse crear(EstudianteRequest request, String usernameActual) {
+        permisosService.verificarCarrera(request.carreraId(), usernameActual);
         String username = request.username().trim();
         String matricula = request.matricula().trim();
         if (usuarioRepository.existsByUsername(username)) {
@@ -67,9 +82,12 @@ public class EstudianteService {
         return EstudianteResponse.from(estudiante);
     }
 
+    /** Un docente solo edita estudiantes de sus carreras y no puede pasarlos a otra ajena. */
     @Transactional
-    public EstudianteResponse actualizar(Long id, EstudianteUpdateRequest request) {
+    public EstudianteResponse actualizar(Long id, EstudianteUpdateRequest request, String usernameActual) {
         Estudiante estudiante = buscar(id);
+        permisosService.verificarCarrera(estudiante.getCarrera().getId(), usernameActual);
+        permisosService.verificarCarrera(request.carreraId(), usernameActual);
         String matricula = request.matricula().trim();
         if (estudianteRepository.existsByMatriculaAndIdNot(matricula, id)) {
             throw new ConflictoException("Ya existe otro estudiante con la matrícula " + matricula);

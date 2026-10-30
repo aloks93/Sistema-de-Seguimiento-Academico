@@ -1,6 +1,7 @@
 package py.edu.upe.hernandarias.service;
 
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,12 +21,17 @@ public class CarreraService {
     private final CarreraRepository carreraRepository;
     private final MateriaRepository materiaRepository;
     private final EstudianteRepository estudianteRepository;
+    private final PermisosService permisosService;
 
+    /** Todas las carreras para un ADMIN; para un docente, solo aquellas donde tiene materias. */
     @Transactional(readOnly = true)
-    public List<CarreraResponse> listar() {
-        return carreraRepository.findAllByOrderByNombreAsc().stream()
-                .map(this::respuesta)
-                .toList();
+    public List<CarreraResponse> listar(String username) {
+        List<Carrera> carreras = carreraRepository.findAllByOrderByNombreAsc();
+        if (!permisosService.esAdmin(username)) {
+            Set<Long> propias = permisosService.carrerasDelDocente(username);
+            carreras = carreras.stream().filter(carrera -> propias.contains(carrera.getId())).toList();
+        }
+        return carreras.stream().map(this::respuesta).toList();
     }
 
     @Transactional

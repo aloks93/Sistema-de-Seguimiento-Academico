@@ -41,4 +41,8 @@ public class Usuario {
     @Builder.Default
     @Column(nullable = false)
     private boolean activo = true;
+
+    /** Preferencias de apariencia en JSON (ver PreferenciasDto); {@code null} = valores por defecto. */
+    @Column(length = 1000)
+    private String preferencias;
 }

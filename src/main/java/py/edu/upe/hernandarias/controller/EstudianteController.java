@@ -22,7 +22,10 @@ import py.edu.upe.hernandarias.dto.EstudianteUpdateRequest;
 import py.edu.upe.hernandarias.service.CalificacionService;
 import py.edu.upe.hernandarias.service.EstudianteService;
 
-/** Consulta, alta y edición (DOCENTE, ADMIN) y baja (solo ADMIN) de estudiantes, ver SecurityConfig. */
+/**
+ * Consulta, alta y edición (ADMIN; DOCENTE solo en las carreras donde tiene materias) y
+ * baja (solo ADMIN) de estudiantes, ver SecurityConfig y PermisosService.
+ */
 @RestController
 @RequestMapping("/api/estudiantes")
 @RequiredArgsConstructor
@@ -38,20 +41,23 @@ public class EstudianteController {
     }
 
     @GetMapping
-    public List<EstudianteResponse> listar(@RequestParam(required = false) Long carreraId) {
-        return estudianteService.listar(carreraId);
+    public List<EstudianteResponse> listar(@RequestParam(required = false) Long carreraId,
+                                           Authentication authentication) {
+        return estudianteService.listar(carreraId, authentication.getName());
     }
 
     @PostMapping
-    public ResponseEntity<EstudianteResponse> crear(@Valid @RequestBody EstudianteRequest request) {
-        EstudianteResponse creado = estudianteService.crear(request);
+    public ResponseEntity<EstudianteResponse> crear(@Valid @RequestBody EstudianteRequest request,
+                                                    Authentication authentication) {
+        EstudianteResponse creado = estudianteService.crear(request, authentication.getName());
         return ResponseEntity.created(URI.create("/api/estudiantes/" + creado.id())).body(creado);
     }
 
     @PutMapping("/{id}")
     public EstudianteResponse actualizar(@PathVariable Long id,
-                                         @Valid @RequestBody EstudianteUpdateRequest request) {
-        return estudianteService.actualizar(id, request);
+                                         @Valid @RequestBody EstudianteUpdateRequest request,
+                                         Authentication authentication) {
+        return estudianteService.actualizar(id, request, authentication.getName());
     }
 
     @DeleteMapping("/{id}")

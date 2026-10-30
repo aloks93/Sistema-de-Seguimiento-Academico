@@ -13,14 +13,12 @@ import py.edu.upe.hernandarias.entity.Calificacion;
 import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Estudiante;
 import py.edu.upe.hernandarias.entity.Materia;
-import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.exception.ConflictoException;
 import py.edu.upe.hernandarias.exception.OperacionNoPermitidaException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
 import py.edu.upe.hernandarias.repository.EstudianteRepository;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
-import py.edu.upe.hernandarias.repository.UsuarioRepository;
 
 /**
  * Reglas de las notas: un ADMIN opera sobre cualquier materia; un DOCENTE solo sobre
@@ -35,7 +33,7 @@ public class CalificacionService {
     private final CalificacionRepository calificacionRepository;
     private final EstudianteRepository estudianteRepository;
     private final MateriaRepository materiaRepository;
-    private final UsuarioRepository usuarioRepository;
+    private final PermisosService permisosService;
 
     /** Calificaciones del estudiante vinculado al usuario autenticado. */
     @Transactional(readOnly = true)
@@ -135,8 +133,6 @@ public class CalificacionService {
     }
 
     private boolean esAdmin(String username) {
-        return usuarioRepository.findByUsername(username)
-                .map(usuario -> usuario.getRol() == Rol.ADMIN)
-                .orElse(false);
+        return permisosService.esAdmin(username);
     }
 }
