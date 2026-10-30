@@ -50,8 +50,11 @@ Quién puede hacer qué (JERARQUÍA):
                              Un docente sin materias asignadas no ve nada
                              hasta que el admin le asigne una.
   - ESTUDIANTE ............. ve sus propias notas y su promedio.
-  Todos tienen "Ajustes" para personalizar los colores de la interfaz y
-  cambiar su contraseña.
+  Todos tienen "Ajustes" para personalizar los colores de la interfaz,
+  cambiar su contraseña y activar la VERIFICACIÓN EN DOS PASOS (código de
+  Google Authenticator además de la contraseña).
+  Casi todas las pantallas tienen "Exportar" a EXCEL, y el admin tiene
+  "Carga masiva" para cargar una carrera entera desde un Excel.
   Todos tienen que iniciar sesión primero; el sistema les da un "token"
   (JWT) que se envía en cada petición para demostrar quiénes son.
   Las reglas las controla el SERVIDOR (no solo la página): aunque alguien
@@ -181,10 +184,15 @@ CÓMO USAR LA PÁGINA WEB
                 materia: Editar y elegir otro docente.
   Docentes .... "+ Nuevo docente": nombre completo, usuario y contraseña.
                 La tabla muestra las materias que tiene a cargo.
-  Carreras .... "+ Nueva carrera": código y nombre. Muestra cuántas
-                materias y estudiantes tiene cada una.
+  Carreras .... "+ Nueva carrera": código, nombre y DURACIÓN EN SEMESTRES
+                (1 a 12). Muestra cuántas materias y estudiantes tiene.
+                Botón "Plantilla" en cada fila: descarga su Excel de carga.
+  Carga masiva  cargar docentes, materias y estudiantes de una carrera
+                desde Excel (ver "CARGA MASIVA POR EXCEL" abajo).
   Usuarios .... crear otros administradores, cambiar la contraseña de
-                cualquiera (🔑) y Desactivar / Activar cuentas.
+                cualquiera (🔑), Desactivar / Activar cuentas, ver quién
+                tiene verificación en dos pasos y "Quitar 2FA" (para quien
+                perdió el celular).
   Ajustes ..... apariencia y contraseña propia (ver abajo).
 
   Orden recomendado para cargar todo desde cero (como admin):
@@ -220,7 +228,57 @@ CÓMO USAR LA PÁGINA WEB
                    Se aplica al instante y se GUARDA EN LA CUENTA: cada
                    usuario ve sus colores en cualquier computadora.
                    "Restablecer" vuelve al azul y negro original.
+    Verificación en dos pasos (ver abajo).
     Mi cuenta .... cambiar la propia contraseña (pide la actual).
+
+  VERIFICACIÓN EN DOS PASOS (Google Authenticator)
+    Activar: Ajustes → "Activar con Google Authenticator".
+      1. Instalar Google Authenticator en el celular (Play Store / App Store).
+      2. En la app: "+" → "Escanear un código QR" y apuntar al QR de la
+         pantalla (o cargar a mano la clave que aparece debajo).
+      3. Escribir el código de 6 dígitos que muestra la app → "Activar".
+    Desde entonces, al ingresar: usuario + contraseña → y después el código
+    de 6 dígitos que muestra la app en ese momento (cambia cada 30 s).
+    - Tras 5 códigos incorrectos el usuario queda bloqueado 5 minutos.
+    - Desactivar: Ajustes → "Desactivar" (pide contraseña y un código).
+    - ¿Perdió el celular? Un administrador entra a Usuarios → "Quitar 2FA";
+      la persona vuelve a entrar solo con contraseña y puede reactivarla.
+    También sirven Microsoft Authenticator, Authy, 2FAS, etc.
+
+  EXPORTAR A EXCEL
+    Botón "Exportar" (ícono ⬇) arriba a la derecha en Estudiantes, Materias,
+    Docentes y Carreras (respeta el filtro de carrera elegido). En la planilla
+    de notas: "Exportar planilla" (todos los estudiantes de la carrera con su
+    nota y el promedio). En Inicio: "Exportar todas las notas". El estudiante
+    tiene "Descargar en Excel" en Mis notas. Cada uno exporta SOLO lo que
+    puede ver (un docente, solo sus carreras y materias).
+
+  CARGA MASIVA POR EXCEL (solo admin)
+    Sirve para cargar una carrera entera de una vez.
+    1. Crear la carrera (Carreras → "+ Nueva carrera", con sus semestres).
+    2. Carga masiva → elegir la carrera → "Descargar plantilla".
+       El Excel trae:
+         Instrucciones .. cómo completarlo.
+         Docentes ....... nombre completo, usuario, contraseña inicial.
+         Materias ....... filas YA PREPARADAS para cada semestre de la
+                          carrera (ej.: 6 filas para el 1°, 6 para el 2°...):
+                          completar código, nombre, créditos y elegir el
+                          docente de la lista desplegable.
+         Estudiantes .... nombre completo, matrícula, usuario, contraseña.
+       Lo que ya está registrado aparece en GRIS (no hace falta tocarlo).
+    3. Completar el Excel y guardarlo.
+    4. Carga masiva → arrastrar el archivo (o hacer clic para elegirlo).
+       El sistema REVISA TODO SIN GUARDAR y muestra:
+         - cuántos docentes, materias y estudiantes se van a crear,
+         - cuántas filas ya existían (se omiten),
+         - los ERRORES con su hoja y número de fila (ej.: "Materias, fila
+           12: Semestre debe ser un número entero de 1 a 4").
+    5. Si hay errores: corregirlos en el Excel y volver a subirlo.
+       Con UN solo error no se guarda NADA (nunca queda una carga a medias).
+       Si no hay errores: "Confirmar e importar".
+    La misma plantilla se puede volver a subir más adelante con filas nuevas:
+    lo que ya existe se omite y solo se agrega lo nuevo.
+    Cada usuario creado así debería cambiar su contraseña inicial en Ajustes.
 
   Los datos quedan guardados en la base de datos: al apagar y volver a
   iniciar el sistema, todo lo cargado sigue ahí.
@@ -323,7 +381,8 @@ trabajo distinto:
       UsuarioController ......... listar usuarios, crear administradores,
                                   activar/desactivar y cambiar contraseñas
       PerfilController .......... datos del usuario que inició sesión, sus
-                                  preferencias de colores y su contraseña
+                                  preferencias de colores, su contraseña y
+                                  la verificación en dos pasos
 
   service\     -> LÓGICA DE NEGOCIO: las reglas del sistema.
       PermisosService ........... LA JERARQUÍA: dice si alguien es ADMIN y
@@ -331,8 +390,11 @@ trabajo distinto:
                                   Los demás servicios lo usan para filtrar
                                   lo que ve cada docente y rechazar (403) lo
                                   que no le corresponde.
-      PerfilService ............. Guarda las preferencias de apariencia y
-                                  cambia la propia contraseña.
+      PerfilService ............. Guarda las preferencias de apariencia,
+                                  cambia la propia contraseña y activa /
+                                  desactiva la verificación en dos pasos.
+      AuthService ............... (login) si el usuario tiene 2FA, pide y
+                                  verifica el código de 6 dígitos.
       AuthService ............... Comprueba usuario y contraseña y genera el
                                   token JWT.
       CalificacionService ....... Registrar, modificar, eliminar y listar
@@ -394,6 +456,20 @@ trabajo distinto:
                                   token desde la configuración.
       UsuarioDetailsService ..... Busca el usuario en la base para Spring
                                   Security.
+      Totp ...................... Códigos de 6 dígitos cada 30 s (estándar
+                                  RFC 6238, el de Google Authenticator).
+      GeneradorQr ............... Dibuja el código QR (librería ZXing).
+      LimiteIntentos ............ Bloquea 5 minutos tras 5 códigos malos.
+
+  excel\       -> TODO LO DE EXCEL (librería Apache POI).
+      ExportacionService ........ Arma los Excel de estudiantes, materias,
+                                  docentes, carreras, planillas y boletines,
+                                  usando los mismos permisos que la API.
+      CargaMasivaService ........ Genera la plantilla de cada carrera y la
+                                  importa: valida fila por fila y guarda
+                                  todo junto (o nada si hay errores).
+      ExcelUtil ................. Formato común (encabezado azul, filtros,
+                                  anchos de columna).
 
   exception\   -> MANEJO DE ERRORES.
       RecursoNoEncontradoException ... se lanza cuando algo no existe (404)
@@ -442,8 +518,9 @@ Configuración (src\main\resources\):
       V2__carreras_y_docentes.sql ... agrega carreras y docentes y CONVIERTE
                                       los datos viejos (no se pierde nada)
       V3__preferencias_usuario.sql .. columna para los colores de cada usuario
+      V4__semestres_y_dos_factores.sql  duración de cada carrera y claves 2FA
     Para cambiar la estructura de la base: crear un archivo NUEVO
-    (V4__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
+    (V5__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
 
 Tests (src\test\):
   CalificacionApiIntegrationTest.java ... login, permisos y notas (sección 9).
@@ -452,6 +529,11 @@ Tests (src\test\):
                                           jerarquía de cada rol y la web.
   PerfilApiIntegrationTest.java ......... perfil, preferencias de colores
                                           y cambio de la propia contraseña.
+  DosFactoresApiIntegrationTest.java .... verificación en dos pasos.
+  ExcelApiIntegrationTest.java .......... exportaciones, plantilla y carga
+                                          masiva (con y sin errores).
+  TotpTest.java ......................... códigos de Google Authenticator
+                                          contra los ejemplos oficiales.
   application-test.yml .................. usa una base H2 en memoria.
 
 
@@ -507,6 +589,12 @@ Ejemplo: un docente registra una nota.
   GET     /api/perfil                          cualquiera con sesión
   PUT     /api/perfil/preferencias             cualquiera con sesión
   PUT     /api/perfil/contrasena               cualquiera con sesión
+  POST    /api/perfil/2fa/iniciar | activar | desactivar   cualquiera con sesión
+  GET     /api/exportar/estudiantes | materias | notas     DOCENTE*, ADMIN
+  GET     /api/exportar/docentes | carreras                ADMIN
+  GET     /api/exportar/mis-notas                          ESTUDIANTE
+  GET     /api/carga-masiva/plantilla?carreraId=1          ADMIN
+  POST    /api/carga-masiva?soloValidar=true|false         ADMIN
   *  el DOCENTE solo ve / opera en las materias que tiene a cargo.
   ** el DOCENTE solo en las carreras donde tiene materias a cargo.
 
@@ -595,6 +683,13 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - un docente sin materias no ve carreras, materias ni estudiantes
   - cada usuario guarda sus colores; colores inválidos dan 400
   - cambiar la propia contraseña exige la actual
+  - 2FA: activar con código, login que pide el código, código incorrecto,
+    bloqueo tras 5 intentos, desactivar y "Quitar 2FA" del admin
+  - Excel: cada uno exporta solo lo suyo; la plantilla trae filas por
+    semestre; la carga valida, importa, no duplica al resubir y con un
+    error no guarda nada
+  - una materia no puede estar en un semestre mayor que la duración de
+    su carrera
   - el docente SOLO califica sus materias (403 en las de otro docente o
     sin docente) y solo ve las notas de sus materias
   - no se pone nota de una materia de otra carrera (409)
@@ -604,7 +699,7 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - un usuario desactivado ya no puede entrar
   - la página web se sirve sin necesidad de token
 
-  Al final debe decir BUILD SUCCESS (23 tests, 0 fallos).
+  Al final debe decir BUILD SUCCESS (40 tests, 0 fallos).
 
 
 --------------------------------------------------------------------------
@@ -652,6 +747,17 @@ Comandos útiles (terminal en la carpeta del proyecto):
   probar-api.cmd dice "No se pudo conectar"
       Primero iniciar-todo.cmd y esperar a que diga
       "Started SeguimientoAcademicoApplication".
+
+  Google Authenticator: "Código de verificación incorrecto"
+      Revisar que la hora del celular sea automática (Ajustes del celular →
+      Fecha y hora → automática). El código cambia cada 30 segundos.
+
+  Perdí el celular y tengo verificación en dos pasos
+      Pedir a un administrador: Usuarios → "Quitar 2FA" en su fila.
+
+  La carga masiva dice "no es una plantilla del sistema"
+      Hay que usar el Excel descargado desde el sistema (tiene una hoja
+      oculta que indica la carrera). No crear uno nuevo desde cero.
 
   Quiero empezar con la base vacía
       comandos\detener-backend.cmd y después

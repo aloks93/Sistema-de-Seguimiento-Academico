@@ -66,6 +66,23 @@ rápida con Enter y guardado en lote), gestión con búsqueda y filtros, y **Aju
 elige modo oscuro/claro, color principal, color de la barra lateral, densidad y tamaño de texto (se guarda
 en su cuenta) y cambia su contraseña. Por defecto: azul y negro.
 
+### Seguridad: verificación en dos pasos (2FA)
+
+Cada usuario puede activarla en **Ajustes** escaneando un QR con Google Authenticator (o cualquier app
+TOTP, RFC 6238). Desde entonces el login pide, además de la contraseña, el código de 6 dígitos. Tras 5
+códigos incorrectos el usuario queda bloqueado 5 minutos. Si alguien pierde el celular, un ADMIN puede
+quitarle el 2FA desde **Usuarios**.
+
+### Excel
+
+- **Exportar**: estudiantes, materias, docentes, carreras, la planilla de notas de una materia, todas las
+  notas y el boletín del estudiante. Cada usuario exporta solo lo que puede ver.
+- **Carga masiva** (ADMIN): cada carrera tiene una duración en semestres. El sistema genera una **plantilla
+  por carrera** (hojas Docentes, Materias —con filas preparadas para cada semestre— y Estudiantes, con
+  listas desplegables y lo ya registrado en gris). Se completa, se sube, se **valida fila por fila** y
+  recién entonces se importa todo junto. Con un solo error no se guarda nada; lo que ya existe se omite,
+  así la misma plantilla se puede volver a subir con filas nuevas.
+
 Es HTML + CSS + JavaScript (módulos ES) sin dependencias, en `src/main/resources/static/`; no requiere Node
 ni compilación.
 
@@ -100,7 +117,7 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 
 | Método | Ruta | Roles | Descripción |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | público | Autentica y devuelve un JWT |
+| `POST` | `/api/auth/login` | público | Autentica y devuelve un JWT. Con 2FA activo responde `requiereCodigo: true` hasta recibir también `codigo` |
 | `GET` | `/api/estudiantes/me/calificaciones` | ESTUDIANTE | Notas del estudiante autenticado |
 | `GET` | `/api/calificaciones?estudianteId=&materiaId=` | DOCENTE, ADMIN | Lista notas (filtros opcionales; el docente solo ve las de sus materias) |
 | `POST` | `/api/calificaciones` | DOCENTE\*, ADMIN | Registra una nota |
@@ -124,10 +141,19 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `DELETE` | `/api/docentes/{id}` | ADMIN | Elimina un docente sin materias a cargo (y su usuario) |
 | `GET` | `/api/usuarios` | ADMIN | Lista todos los usuarios |
 | `POST` | `/api/usuarios` | ADMIN | Crea un usuario ADMIN |
-| `PATCH` | `/api/usuarios/{id}` | ADMIN | Activa/desactiva o cambia la contraseña |
+| `PATCH` | `/api/usuarios/{id}` | ADMIN | Activa/desactiva, cambia la contraseña o quita el 2FA (`quitarDosFactores`) |
 | `GET` | `/api/perfil` | autenticado | Usuario, rol, nombre y preferencias de apariencia |
 | `PUT` | `/api/perfil/preferencias` | autenticado | Guarda modo, colores (`#rrggbb`), densidad y tamaño de texto |
 | `PUT` | `/api/perfil/contrasena` | autenticado | Cambia la propia contraseña (exige la actual) |
+| `POST` | `/api/perfil/2fa/iniciar` | autenticado | Genera la clave y el QR para Google Authenticator |
+| `POST` | `/api/perfil/2fa/activar` | autenticado | Activa el 2FA confirmando un código de la app |
+| `POST` | `/api/perfil/2fa/desactivar` | autenticado | Desactiva el 2FA (exige contraseña y código) |
+| `GET` | `/api/exportar/estudiantes`, `/materias` (`?carreraId=`) | DOCENTE\*\*, ADMIN | Excel con el listado |
+| `GET` | `/api/exportar/notas?materiaId=` | DOCENTE\*, ADMIN | Excel con la planilla de una materia (sin `materiaId`: todas las notas visibles) |
+| `GET` | `/api/exportar/docentes`, `/carreras` | ADMIN | Excel con el listado |
+| `GET` | `/api/exportar/mis-notas` | ESTUDIANTE | Excel con el boletín del estudiante |
+| `GET` | `/api/carga-masiva/plantilla?carreraId=` | ADMIN | Plantilla Excel de la carrera |
+| `POST` | `/api/carga-masiva?soloValidar=` | ADMIN | Sube la plantilla (`multipart`, campo `archivo`); valida y, si no hay errores, importa |
 
 \* Un DOCENTE solo ve y opera sobre las materias que tiene a cargo (si no, `403`).
 \*\* Un DOCENTE solo ve y gestiona las carreras (y sus estudiantes) donde tiene materias a cargo.
@@ -169,11 +195,11 @@ curl -s localhost:8080/api/estudiantes/me/calificaciones -H "Authorization: Bear
 ## Modelo de datos
 
 ```
-carreras (id, codigo, nombre)
+carreras (id, codigo, nombre, semestres)
    ├── 1:N ── estudiantes (id, usuario_id, matricula, nombre_completo, carrera_id)
    └── 1:N ── materias (id, codigo, nombre, creditos, semestre, carrera_id, docente_id)
 
-usuarios (id, username, password_hash, rol, activo, preferencias)
+usuarios (id, username, password_hash, rol, activo, preferencias, totp_secreto, totp_secreto_pendiente)
    ├── 1:1 ── estudiantes.usuario_id
    └── 1:1 ── docentes (id, usuario_id, nombre_completo)
                  └── 1:N ── materias.docente_id   (docente a cargo, opcional)
@@ -182,7 +208,7 @@ calificaciones (id, estudiante_id, materia_id, nota, fecha_registro, fecha_actua
    UNIQUE (estudiante_id, materia_id) · CHECK (nota BETWEEN 0 AND 100)
 ```
 
-Los cambios de esquema se hacen **siempre con una migración nueva** (`V4__descripcion.sql`, …) en
+Los cambios de esquema se hacen **siempre con una migración nueva** (`V5__descripcion.sql`, …) en
 `src/main/resources/db/migration`; nunca se modifica una migración ya subida.
 
 ## Estructura del proyecto
@@ -194,7 +220,8 @@ src/main/java/py/edu/upe/hernandarias/
 ├── repository/   Acceso a datos (Spring Data JPA)
 ├── entity/       Entidades JPA
 ├── dto/          Objetos de entrada/salida de la API
-├── security/     JWT, filtro de autenticación y configuración RBAC
+├── security/     JWT, filtro de autenticación, RBAC y 2FA (TOTP, QR, límite de intentos)
+├── excel/        Exportaciones, plantilla por carrera y carga masiva (Apache POI)
 ├── exception/    Excepciones y manejador global de errores
 └── config/       Configuración adicional (datos de ejemplo)
 
