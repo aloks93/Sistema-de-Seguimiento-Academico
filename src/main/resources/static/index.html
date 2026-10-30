@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Seguimiento Académico · UPE Hernandarias</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- ============================ LOGIN ============================ -->
+<section id="vista-login" class="login" hidden>
+    <form id="form-login" class="tarjeta login__tarjeta">
+        <h1 class="login__titulo">Seguimiento Académico</h1>
+        <p class="sutil">UPE · Filial Hernandarias</p>
+
+        <label>Usuario
+            <input name="username" autocomplete="username" required autofocus>
+        </label>
+        <label>Contraseña
+            <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="boton boton--primario boton--ancho">Ingresar</button>
+
+        <details class="ayuda">
+            <summary>Usuarios de prueba</summary>
+            <table class="tabla tabla--compacta">
+                <tbody>
+                <tr><td>admin</td><td>admin123</td><td>administra todo</td></tr>
+                <tr><td>docente</td><td>docente123</td><td>estudiantes y notas</td></tr>
+                <tr><td>estudiante</td><td>estudiante123</td><td>ve sus notas</td></tr>
+                </tbody>
+            </table>
+        </details>
+    </form>
+</section>
+
+<!-- ============================ APLICACIÓN ============================ -->
+<div id="vista-app" hidden>
+    <header class="barra">
+        <span class="barra__titulo">Seguimiento Académico</span>
+        <nav id="pestanas" class="pestanas"></nav>
+        <div class="barra__usuario">
+            <span id="usuario-actual"></span>
+            <button id="boton-salir" type="button" class="boton boton--texto">Salir</button>
+        </div>
+    </header>
+
+    <main class="contenido">
+
+        <!-- ---------- NOTAS (docente / admin) ---------- -->
+        <section id="seccion-notas" class="seccion" hidden>
+            <h2>Notas</h2>
+            <p id="pista-sin-materias" class="pista" hidden>
+                Todavía no tiene materias a cargo. Pida al administrador que le asigne sus materias.
+            </p>
+            <form id="form-nota" class="tarjeta formulario">
+                <h3 class="formulario__titulo">Cargar nota</h3>
+                <input type="hidden" name="id">
+                <label>Materia
+                    <select name="materiaId" required data-bloquear-al-editar></select>
+                </label>
+                <label>Estudiante
+                    <select name="estudianteId" required data-bloquear-al-editar></select>
+                </label>
+                <label>Nota (0 a 100)
+                    <input name="nota" type="number" min="0" max="100" step="1" required>
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Guardar nota</button>
+                    <button type="button" class="boton" data-cancelar hidden>Cancelar edición</button>
+                </div>
+                <p class="sutil formulario__nota">Solo aparecen los estudiantes de la carrera de la materia elegida.</p>
+            </form>
+
+            <div class="filtros">
+                <label>Ver notas de la materia
+                    <select id="filtro-nota-materia"></select>
+                </label>
+                <label>del estudiante
+                    <select id="filtro-nota-estudiante"></select>
+                </label>
+            </div>
+            <div class="tabla-contenedor">
+                <table id="tabla-notas" class="tabla">
+                    <thead>
+                    <tr><th>Estudiante</th><th>Matrícula</th><th>Materia</th><th>Sem.</th>
+                        <th class="num">Nota</th><th>Actualizada</th><th></th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- ESTUDIANTES (docente / admin) ---------- -->
+        <section id="seccion-estudiantes" class="seccion" hidden>
+            <h2>Estudiantes</h2>
+            <form id="form-estudiante" class="tarjeta formulario">
+                <h3 class="formulario__titulo">Nuevo estudiante</h3>
+                <input type="hidden" name="id">
+                <label>Nombre completo
+                    <input name="nombreCompleto" maxlength="150" required>
+                </label>
+                <label>Matrícula
+                    <input name="matricula" maxlength="20" required placeholder="2026-0002">
+                </label>
+                <label>Carrera
+                    <select name="carreraId" required></select>
+                </label>
+                <label>Usuario (para ingresar)
+                    <input name="username" maxlength="50" required data-bloquear-al-editar autocomplete="off">
+                </label>
+                <label>Contraseña
+                    <input name="password" type="password" minlength="6" maxlength="72" required
+                           autocomplete="new-password" data-opcional-al-editar>
+                    <small class="sutil" data-ayuda-editar hidden>Dejar vacío para no cambiarla</small>
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Crear estudiante</button>
+                    <button type="button" class="boton" data-cancelar hidden>Cancelar edición</button>
+                </div>
+            </form>
+
+            <div class="filtros">
+                <label>Ver estudiantes de
+                    <select id="filtro-estudiante-carrera"></select>
+                </label>
+            </div>
+            <div class="tabla-contenedor">
+                <table id="tabla-estudiantes" class="tabla">
+                    <thead>
+                    <tr><th>Nombre</th><th>Matrícula</th><th>Carrera</th><th>Usuario</th><th>Estado</th><th></th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- MATERIAS (admin gestiona; docente ve las suyas) ---------- -->
+        <section id="seccion-materias" class="seccion" hidden>
+            <h2 id="titulo-materias">Materias</h2>
+            <form id="form-materia" class="tarjeta formulario" data-solo-admin>
+                <h3 class="formulario__titulo">Nueva materia</h3>
+                <input type="hidden" name="id">
+                <label>Código
+                    <input name="codigo" maxlength="20" required placeholder="INF-301">
+                </label>
+                <label>Nombre
+                    <input name="nombre" maxlength="120" required>
+                </label>
+                <label>Carrera
+                    <select name="carreraId" required></select>
+                </label>
+                <label>Semestre (1 a 12)
+                    <input name="semestre" type="number" min="1" max="12" step="1" required>
+                </label>
+                <label>Créditos
+                    <input name="creditos" type="number" min="1" step="1" required>
+                </label>
+                <label>Docente a cargo
+                    <select name="docenteId"></select>
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Crear materia</button>
+                    <button type="button" class="boton" data-cancelar hidden>Cancelar edición</button>
+                </div>
+            </form>
+
+            <div class="filtros" data-solo-admin>
+                <label>Ver materias de
+                    <select id="filtro-materia-carrera"></select>
+                </label>
+            </div>
+            <div class="tabla-contenedor">
+                <table id="tabla-materias" class="tabla">
+                    <thead>
+                    <tr><th>Código</th><th>Nombre</th><th>Carrera</th><th class="num">Sem.</th>
+                        <th class="num">Créd.</th><th>Docente</th><th data-solo-admin></th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- DOCENTES (admin) ---------- -->
+        <section id="seccion-docentes" class="seccion" hidden>
+            <h2>Docentes</h2>
+            <form id="form-docente" class="tarjeta formulario">
+                <h3 class="formulario__titulo">Nuevo docente</h3>
+                <input type="hidden" name="id">
+                <label>Nombre completo
+                    <input name="nombreCompleto" maxlength="150" required placeholder="Lic. María Benítez">
+                </label>
+                <label>Usuario (para ingresar)
+                    <input name="username" maxlength="50" required data-bloquear-al-editar autocomplete="off">
+                </label>
+                <label>Contraseña
+                    <input name="password" type="password" minlength="6" maxlength="72" required
+                           autocomplete="new-password" data-opcional-al-editar>
+                    <small class="sutil" data-ayuda-editar hidden>Dejar vacío para no cambiarla</small>
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Crear docente</button>
+                    <button type="button" class="boton" data-cancelar hidden>Cancelar edición</button>
+                </div>
+                <p class="sutil formulario__nota">Las materias se asignan a cada docente en la pestaña Materias.</p>
+            </form>
+
+            <div class="tabla-contenedor">
+                <table id="tabla-docentes" class="tabla">
+                    <thead><tr><th>Nombre</th><th>Usuario</th><th>Materias a cargo</th><th>Estado</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- CARRERAS (admin) ---------- -->
+        <section id="seccion-carreras" class="seccion" hidden>
+            <h2>Carreras</h2>
+            <form id="form-carrera" class="tarjeta formulario">
+                <h3 class="formulario__titulo">Nueva carrera</h3>
+                <input type="hidden" name="id">
+                <label>Código
+                    <input name="codigo" maxlength="20" required placeholder="DER">
+                </label>
+                <label>Nombre
+                    <input name="nombre" maxlength="120" required placeholder="Derecho">
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Crear carrera</button>
+                    <button type="button" class="boton" data-cancelar hidden>Cancelar edición</button>
+                </div>
+            </form>
+
+            <div class="tabla-contenedor">
+                <table id="tabla-carreras" class="tabla">
+                    <thead>
+                    <tr><th>Código</th><th>Nombre</th><th class="num">Materias</th><th class="num">Estudiantes</th><th></th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- USUARIOS (admin) ---------- -->
+        <section id="seccion-usuarios" class="seccion" hidden>
+            <h2>Usuarios</h2>
+            <form id="form-usuario" class="tarjeta formulario">
+                <h3 class="formulario__titulo">Nuevo administrador</h3>
+                <label>Usuario
+                    <input name="username" maxlength="50" required autocomplete="off">
+                </label>
+                <label>Contraseña
+                    <input name="password" type="password" minlength="6" maxlength="72" required
+                           autocomplete="new-password">
+                </label>
+                <div class="formulario__acciones">
+                    <button type="submit" class="boton boton--primario">Crear administrador</button>
+                </div>
+                <p class="sutil formulario__nota">
+                    Los docentes y estudiantes se crean en sus pestañas. Aquí se puede activar, desactivar
+                    o cambiar la contraseña de cualquier usuario.
+                </p>
+            </form>
+
+            <div class="tabla-contenedor">
+                <table id="tabla-usuarios" class="tabla">
+                    <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ---------- MIS NOTAS (estudiante) ---------- -->
+        <section id="seccion-misNotas" class="seccion" hidden>
+            <h2>Mis notas</h2>
+            <div class="resumen">
+                <div class="tarjeta resumen__dato">
+                    <span class="resumen__valor" id="resumen-promedio">–</span>
+                    <span class="sutil">Promedio</span>
+                </div>
+                <div class="tarjeta resumen__dato">
+                    <span class="resumen__valor" id="resumen-materias">0</span>
+                    <span class="sutil">Materias con nota</span>
+                </div>
+            </div>
+            <div class="tabla-contenedor">
+                <table id="tabla-mis-notas" class="tabla">
+                    <thead>
+                    <tr><th>Materia</th><th>Código</th><th>Docente</th><th class="num">Semestre</th>
+                        <th class="num">Créditos</th><th class="num">Nota</th><th>Actualizada</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
