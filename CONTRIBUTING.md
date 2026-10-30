@@ -59,7 +59,7 @@ docs: documentar variables de entorno en el README
 - Errores de negocio: lanzar excepciones del paquete `exception`; el `GlobalExceptionHandler` las traduce a HTTP.
 - Nuevos endpoints protegidos: declarar los roles en `SecurityConfig` y cubrirlos con tests.
 - Cambios en las entidades que alteren tablas o columnas: agregar una migración nueva en
-  `src/main/resources/db/migration` (`V3__descripcion.sql`, `V4__…`). **Nunca** modificar una migración ya
+  `src/main/resources/db/migration` (`V4__descripcion.sql`, `V5__…`). **Nunca** modificar una migración ya
   subida a `main`: Flyway la detecta como alterada y la aplicación no arranca.
 - Nombres de dominio en español (`Calificacion`, `registrar`, …), igual que el código existente.
 - El formato básico (indentación, finales de línea) lo define `.editorconfig`; la mayoría de los IDEs lo aplican automáticamente.

@@ -55,12 +55,19 @@ Los `.cmd` llaman a los scripts de PowerShell de `scripts\`. Explicación detall
 | Rol | Puede |
 |---|---|
 | ADMIN (super usuario) | Gestionar carreras, docentes, materias (y qué docente está a cargo de cada una), estudiantes, administradores y todas las notas |
-| DOCENTE | Dar de alta y editar estudiantes; cargar, corregir y eliminar notas **solo de las materias que tiene a cargo** |
+| DOCENTE | Ver, dar de alta y editar estudiantes **solo de las carreras donde tiene materias**; cargar, corregir y eliminar notas **solo de las materias que tiene a cargo** |
 | ESTUDIANTE | Ver sus notas, el docente de cada materia y su promedio |
 
-Un estudiante solo puede recibir notas de materias de su carrera.
+Un estudiante solo puede recibir notas de materias de su carrera. Las reglas se aplican en el servidor
+(`PermisosService`): lo que no corresponde al docente no aparece en los listados y la API responde `403`.
 
-Es HTML + CSS + JavaScript sin dependencias, en `src/main/resources/static/`; no requiere Node ni compilación.
+Pantallas: panel de inicio con indicadores y avance de carga, **planilla de notas por materia** (carga
+rápida con Enter y guardado en lote), gestión con búsqueda y filtros, y **Ajustes** donde cada usuario
+elige modo oscuro/claro, color principal, color de la barra lateral, densidad y tamaño de texto (se guarda
+en su cuenta) y cambia su contraseña. Por defecto: azul y negro.
+
+Es HTML + CSS + JavaScript (módulos ES) sin dependencias, en `src/main/resources/static/`; no requiere Node
+ni compilación.
 
 El esquema de la base lo crean y actualizan las migraciones de Flyway al arrancar
 (`src/main/resources/db/migration`); en el perfil `dev` además se cargan datos de ejemplo:
@@ -99,15 +106,15 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `POST` | `/api/calificaciones` | DOCENTE\*, ADMIN | Registra una nota |
 | `PATCH` | `/api/calificaciones/{id}` | DOCENTE\*, ADMIN | Modifica una nota existente |
 | `DELETE` | `/api/calificaciones/{id}` | DOCENTE\*, ADMIN | Elimina una nota |
-| `GET` | `/api/estudiantes?carreraId=` | DOCENTE, ADMIN | Lista estudiantes (filtro opcional por carrera) |
-| `POST` | `/api/estudiantes` | DOCENTE, ADMIN | Crea un estudiante y su usuario (rol ESTUDIANTE) |
-| `PUT` | `/api/estudiantes/{id}` | DOCENTE, ADMIN | Modifica datos, carrera y, opcionalmente, la contraseña |
+| `GET` | `/api/estudiantes?carreraId=` | DOCENTE\*\*, ADMIN | Lista estudiantes (filtro opcional por carrera) |
+| `POST` | `/api/estudiantes` | DOCENTE\*\*, ADMIN | Crea un estudiante y su usuario (rol ESTUDIANTE) |
+| `PUT` | `/api/estudiantes/{id}` | DOCENTE\*\*, ADMIN | Modifica datos, carrera y, opcionalmente, la contraseña |
 | `DELETE` | `/api/estudiantes/{id}` | ADMIN | Elimina un estudiante sin notas (y su usuario) |
-| `GET` | `/api/materias?carreraId=` | DOCENTE, ADMIN | Lista materias con su carrera y docente |
+| `GET` | `/api/materias?carreraId=` | DOCENTE\*, ADMIN | Lista materias con su carrera y docente |
 | `POST` | `/api/materias` | ADMIN | Crea una materia (carrera obligatoria, docente opcional) |
 | `PUT` | `/api/materias/{id}` | ADMIN | Modifica una materia o cambia su docente |
 | `DELETE` | `/api/materias/{id}` | ADMIN | Elimina una materia sin notas |
-| `GET` | `/api/carreras` | DOCENTE, ADMIN | Lista carreras con su cantidad de materias y estudiantes |
+| `GET` | `/api/carreras` | DOCENTE\*\*, ADMIN | Lista carreras con su cantidad de materias y estudiantes |
 | `POST` | `/api/carreras` | ADMIN | Crea una carrera |
 | `PUT` | `/api/carreras/{id}` | ADMIN | Modifica una carrera |
 | `DELETE` | `/api/carreras/{id}` | ADMIN | Elimina una carrera sin materias ni estudiantes |
@@ -118,8 +125,12 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `GET` | `/api/usuarios` | ADMIN | Lista todos los usuarios |
 | `POST` | `/api/usuarios` | ADMIN | Crea un usuario ADMIN |
 | `PATCH` | `/api/usuarios/{id}` | ADMIN | Activa/desactiva o cambia la contraseña |
+| `GET` | `/api/perfil` | autenticado | Usuario, rol, nombre y preferencias de apariencia |
+| `PUT` | `/api/perfil/preferencias` | autenticado | Guarda modo, colores (`#rrggbb`), densidad y tamaño de texto |
+| `PUT` | `/api/perfil/contrasena` | autenticado | Cambia la propia contraseña (exige la actual) |
 
-\* Un DOCENTE solo puede operar sobre notas de las materias que tiene a cargo (si no, `403`).
+\* Un DOCENTE solo ve y opera sobre las materias que tiene a cargo (si no, `403`).
+\*\* Un DOCENTE solo ve y gestiona las carreras (y sus estudiantes) donde tiene materias a cargo.
 
 Las rutas protegidas requieren el header `Authorization: Bearer <token>`.
 Los errores se devuelven en formato [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) (`application/problem+json`).
@@ -162,7 +173,7 @@ carreras (id, codigo, nombre)
    ├── 1:N ── estudiantes (id, usuario_id, matricula, nombre_completo, carrera_id)
    └── 1:N ── materias (id, codigo, nombre, creditos, semestre, carrera_id, docente_id)
 
-usuarios (id, username, password_hash, rol, activo)
+usuarios (id, username, password_hash, rol, activo, preferencias)
    ├── 1:1 ── estudiantes.usuario_id
    └── 1:1 ── docentes (id, usuario_id, nombre_completo)
                  └── 1:N ── materias.docente_id   (docente a cargo, opcional)
@@ -171,7 +182,7 @@ calificaciones (id, estudiante_id, materia_id, nota, fecha_registro, fecha_actua
    UNIQUE (estudiante_id, materia_id) · CHECK (nota BETWEEN 0 AND 100)
 ```
 
-Los cambios de esquema se hacen **siempre con una migración nueva** (`V3__descripcion.sql`, …) en
+Los cambios de esquema se hacen **siempre con una migración nueva** (`V4__descripcion.sql`, …) en
 `src/main/resources/db/migration`; nunca se modifica una migración ya subida.
 
 ## Estructura del proyecto
@@ -187,7 +198,7 @@ src/main/java/py/edu/upe/hernandarias/
 ├── exception/    Excepciones y manejador global de errores
 └── config/       Configuración adicional (datos de ejemplo)
 
-src/main/resources/static/        Interfaz web (index.html, css/, js/)
+src/main/resources/static/        Interfaz web: index.html, css/estilos.css y js/ (app, nucleo, ui, tema)
 src/main/resources/db/migration/  Migraciones de la base de datos (Flyway)
 scripts/                     Scripts de Windows usados por los .cmd de la raíz
 ```

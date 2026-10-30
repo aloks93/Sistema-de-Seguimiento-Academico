@@ -34,15 +34,28 @@ Cómo está organizado:
   - Cada ESTUDIANTE pertenece a una carrera.
   - Un estudiante solo recibe notas de materias de SU carrera.
 
-Quién puede hacer qué:
+Quién puede hacer qué (JERARQUÍA):
   - ADMIN (super usuario) .. crea carreras, docentes y materias, y decide
                              qué docente está a cargo de cada materia.
-                             Puede hacer todo lo demás también.
-  - DOCENTE ................ agrega y edita estudiantes, y carga notas
-                             SOLO en las materias que tiene a cargo.
+                             Ve y puede hacer todo.
+  - DOCENTE ................ trabaja SOLO dentro de las carreras donde tiene
+                             materias a cargo:
+                             · ve y agrega/edita estudiantes de esas
+                               carreras (no puede borrarlos);
+                             · carga notas SOLO en sus materias;
+                             · no ve estudiantes, materias ni notas de
+                               otras carreras.
+                             Ejemplo: la profesora de Contabilidad no puede
+                             ver ni agregar estudiantes de Informática.
+                             Un docente sin materias asignadas no ve nada
+                             hasta que el admin le asigne una.
   - ESTUDIANTE ............. ve sus propias notas y su promedio.
+  Todos tienen "Ajustes" para personalizar los colores de la interfaz y
+  cambiar su contraseña.
   Todos tienen que iniciar sesión primero; el sistema les da un "token"
   (JWT) que se envía en cada petición para demostrar quiénes son.
+  Las reglas las controla el SERVIDOR (no solo la página): aunque alguien
+  intente saltarse la interfaz, la API responde 403 (prohibido).
 
 Tecnologías:
   - Java 21 ............... lenguaje de programación
@@ -147,40 +160,67 @@ Datos de ejemplo:
               id 4 = ADM-101 Contabilidad I (sin docente asignado)
 
 CÓMO USAR LA PÁGINA WEB
-  Entrando como admin (admin / admin123) hay 6 pestañas:
+  Diseño: menú a la izquierda (barra lateral), título de la página arriba
+  con el botón principal (ej.: "+ Nuevo estudiante") a la derecha.
+  - Los formularios se abren en una ventana emergente.
+  - Cada tabla tiene un buscador que filtra mientras se escribe.
+  - Antes de borrar algo siempre se pide confirmación.
+  - En el celular el menú se abre con el botón ☰ de arriba a la izquierda.
+  - La dirección cambia con cada pantalla (ej.: #/notas?materia=3), así que
+    se puede recargar, usar "atrás" o guardar la página en favoritos.
 
-  Carreras .... código y nombre -> "Crear carrera". La tabla muestra
-                cuántas materias y estudiantes tiene cada una. Solo se
-                puede eliminar una carrera vacía.
-  Docentes .... nombre completo, usuario y contraseña -> "Crear docente".
-                Con ese usuario el profesor entra al sistema. La tabla
-                muestra las materias que tiene a cargo.
-  Materias .... código, nombre, carrera, semestre, créditos y DOCENTE A
-                CARGO -> "Crear materia". Para cambiar el profesor de una
+  Entrando como ADMIN (admin / admin123):
+  Inicio ...... resumen: carreras, materias, docentes, estudiantes, notas
+                cargadas y promedio general, más el AVANCE de carga de
+                notas de cada materia (barra "x de y estudiantes").
+  Notas ....... PLANILLA por materia (ver abajo).
+  Estudiantes . "+ Nuevo estudiante": nombre, matrícula, carrera, usuario y
+                contraseña. Filtro por carrera. Editar ✎ / Eliminar 🗑.
+  Materias .... "+ Nueva materia": código, nombre, carrera, semestre,
+                créditos y DOCENTE A CARGO. Para cambiar el profesor de una
                 materia: Editar y elegir otro docente.
-  Estudiantes . nombre, matrícula, carrera, usuario y contraseña ->
-                "Crear estudiante". Se puede filtrar por carrera.
-  Notas ....... elegir la materia (aparecen solo los estudiantes de esa
-                carrera), el estudiante y la nota (0 a 100) -> "Guardar
-                nota". Si ya tenía nota en esa materia, pregunta si se
-                quiere reemplazar.
-  Usuarios .... crear otros administradores, cambiar contraseñas de
-                cualquiera y Desactivar (ya no puede entrar) / Activar.
+  Docentes .... "+ Nuevo docente": nombre completo, usuario y contraseña.
+                La tabla muestra las materias que tiene a cargo.
+  Carreras .... "+ Nueva carrera": código y nombre. Muestra cuántas
+                materias y estudiantes tiene cada una.
+  Usuarios .... crear otros administradores, cambiar la contraseña de
+                cualquiera (🔑) y Desactivar / Activar cuentas.
+  Ajustes ..... apariencia y contraseña propia (ver abajo).
 
   Orden recomendado para cargar todo desde cero (como admin):
       1) Carreras  2) Docentes  3) Materias (asignando el docente)
   Después cada docente entra con su usuario y hace:
-      4) Estudiantes  5) Notas
+      4) Estudiantes de sus carreras  5) Notas de sus materias
 
-  Entrando como DOCENTE hay 3 pestañas:
-      Notas ......... carga notas solo de SUS materias (si todavía no
-                      tiene materias, aparece un aviso para pedírselas
-                      al administrador).
-      Estudiantes ... agrega y edita estudiantes (no puede eliminarlos).
-      Mis materias .. las materias que tiene a cargo.
+  PLANILLA DE NOTAS (pestaña Notas)
+    1. Elegir la materia arriba. Aparece la lista de TODOS los estudiantes
+       de la carrera de esa materia, con su nota si ya tienen.
+    2. Escribir las notas (0 a 100). Enter pasa al siguiente estudiante.
+       Cada fila muestra su estado: Guardada / Sin nota / Sin guardar /
+       Debe ser de 0 a 100.
+    3. Abajo aparece una barra "N notas sin guardar" con "Guardar cambios"
+       y "Descartar". Enter en el último estudiante también guarda.
+    4. Para borrar una nota: el ícono 🗑 de su fila.
+    Si se intenta salir de la planilla con notas sin guardar, el sistema
+    pregunta antes de perderlas.
 
-  Entrando como ESTUDIANTE se ve "Mis notas": cada materia con su docente,
-  la nota y el promedio.
+  Entrando como DOCENTE: Inicio (resumen de SUS materias), Notas (solo sus
+  materias), Estudiantes (solo de sus carreras; puede agregar y editar,
+  no eliminar), Mis materias y Ajustes. Si todavía no tiene materias,
+  aparece un aviso para pedírselas al administrador.
+
+  Entrando como ESTUDIANTE: "Mis notas" con promedio, materias con nota,
+  créditos cursados, mejor nota, y cada materia con su docente y su nota.
+
+  AJUSTES (todos los usuarios)
+    Apariencia ... Modo (Oscuro / Claro / Automático según Windows),
+                   Color principal (9 colores + uno personalizado a gusto),
+                   color de la Barra lateral, Densidad (Cómoda / Compacta)
+                   y Tamaño del texto (Normal / Grande).
+                   Se aplica al instante y se GUARDA EN LA CUENTA: cada
+                   usuario ve sus colores en cualquier computadora.
+                   "Restablecer" vuelve al azul y negro original.
+    Mi cuenta .... cambiar la propia contraseña (pide la actual).
 
   Los datos quedan guardados en la base de datos: al apagar y volver a
   iniciar el sistema, todo lo cargado sigue ahí.
@@ -282,8 +322,17 @@ trabajo distinto:
       DocenteController ......... listar, crear, editar y eliminar docentes
       UsuarioController ......... listar usuarios, crear administradores,
                                   activar/desactivar y cambiar contraseñas
+      PerfilController .......... datos del usuario que inició sesión, sus
+                                  preferencias de colores y su contraseña
 
   service\     -> LÓGICA DE NEGOCIO: las reglas del sistema.
+      PermisosService ........... LA JERARQUÍA: dice si alguien es ADMIN y
+                                  en qué carreras tiene materias un docente.
+                                  Los demás servicios lo usan para filtrar
+                                  lo que ve cada docente y rechazar (403) lo
+                                  que no le corresponde.
+      PerfilService ............. Guarda las preferencias de apariencia y
+                                  cambia la propia contraseña.
       AuthService ............... Comprueba usuario y contraseña y genera el
                                   token JWT.
       CalificacionService ....... Registrar, modificar, eliminar y listar
@@ -296,7 +345,8 @@ trabajo distinto:
                                   (contraseña cifrada); no deja repetir
                                   matrícula ni usuario, ni borrar a quien
                                   tiene notas, ni cambiarlo de carrera si
-                                  ya tiene notas.
+                                  ya tiene notas. Un docente solo lista,
+                                  crea y edita estudiantes de sus carreras.
       DocenteService ............ Crea el docente junto con su usuario; no
                                   deja borrar a quien tiene materias a cargo.
       MateriaService ............ Asigna carrera y docente; no deja repetir
@@ -313,7 +363,8 @@ trabajo distinto:
       CarreraRepository, MateriaRepository, CalificacionRepository
 
   entity\      -> Clases que representan las TABLAS de la base de datos.
-      Usuario ......... tabla usuarios (username, contraseña cifrada, rol)
+      Usuario ......... tabla usuarios (username, contraseña cifrada, rol,
+                        preferencias de apariencia)
       Docente ......... tabla docentes (nombre completo; enlazado a su usuario)
       Estudiante ...... tabla estudiantes (matrícula, nombre, carrera)
       Carrera ......... tabla carreras (código, nombre)
@@ -348,7 +399,9 @@ trabajo distinto:
       RecursoNoEncontradoException ... se lanza cuando algo no existe (404)
       ConflictoException ............. se lanza ante duplicados (409)
       OperacionNoPermitidaException .. un docente quiere operar en una
-                                       materia que no es suya (403)
+                                       materia o carrera que no es suya (403)
+      DatoInvalidoException .......... dato incorrecto, ej. contraseña
+                                       actual equivocada (400)
       GlobalExceptionHandler ......... atrapa todos los errores y los
                                        convierte en respuestas JSON claras
                                        (formato estándar RFC 7807).
@@ -359,14 +412,22 @@ trabajo distinto:
                                   desarrollo).
 
 Página web (src\main\resources\static\):
-  index.html .............. estructura de todas las pantallas (login,
-                            notas, estudiantes, materias, docentes,
-                            carreras, usuarios, mis notas).
-  css\estilos.css ......... colores y diseño (se adapta a celular y a modo
-                            oscuro).
-  js\app.js ............... lógica de la página: inicia sesión, guarda el
-                            token, llama a la API con fetch() y dibuja las
-                            tablas y formularios según el rol.
+  index.html .............. pantalla de login y el "marco" (barra lateral,
+                            encabezado); el contenido lo dibuja app.js.
+  css\estilos.css ......... todo el diseño. Los colores son VARIABLES
+                            (--primario, --barra, --fondo...) que cambian
+                            según el modo y las preferencias del usuario.
+                            Se adapta a celular.
+  js\ (módulos de JavaScript, sin librerías externas):
+      app.js ......... navegación (#/inicio, #/notas...) y TODAS las
+                       pantallas: inicio, planilla de notas, estudiantes,
+                       materias, docentes, carreras, usuarios, mis notas
+                       y ajustes. Muestra a cada rol solo lo suyo.
+      nucleo.js ...... sesión (token), llamadas a la API con fetch() y
+                       utilidades (fechas, números, búsqueda sin tildes).
+      ui.js .......... piezas reutilizables: íconos, botones, avisos,
+                       ventanas emergentes, formularios y tablas.
+      tema.js ........ aplica los colores y preferencias de cada usuario.
   Spring Boot sirve estos archivos solo; no hace falta instalar nada más.
 
 Configuración (src\main\resources\):
@@ -380,14 +441,17 @@ Configuración (src\main\resources\):
       V1__esquema_inicial.sql ....... tablas originales
       V2__carreras_y_docentes.sql ... agrega carreras y docentes y CONVIERTE
                                       los datos viejos (no se pierde nada)
+      V3__preferencias_usuario.sql .. columna para los colores de cada usuario
     Para cambiar la estructura de la base: crear un archivo NUEVO
-    (V3__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
+    (V4__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
 
 Tests (src\test\):
   CalificacionApiIntegrationTest.java ... login, permisos y notas (sección 9).
   GestionApiIntegrationTest.java ........ carreras, docentes, materias,
-                                          estudiantes, usuarios, permisos
-                                          de cada rol y la página web.
+                                          estudiantes, usuarios, la
+                                          jerarquía de cada rol y la web.
+  PerfilApiIntegrationTest.java ......... perfil, preferencias de colores
+                                          y cambio de la propia contraseña.
   application-test.yml .................. usa una base H2 en memoria.
 
 
@@ -421,15 +485,15 @@ Ejemplo: un docente registra una nota.
   POST    /api/calificaciones                  DOCENTE*, ADMIN
   PATCH   /api/calificaciones/{id}             DOCENTE*, ADMIN
   DELETE  /api/calificaciones/{id}             DOCENTE*, ADMIN
-  GET     /api/estudiantes  (?carreraId=1)     DOCENTE, ADMIN
-  POST    /api/estudiantes                     DOCENTE, ADMIN
-  PUT     /api/estudiantes/{id}                DOCENTE, ADMIN
+  GET     /api/estudiantes  (?carreraId=1)     DOCENTE**, ADMIN
+  POST    /api/estudiantes                     DOCENTE**, ADMIN
+  PUT     /api/estudiantes/{id}                DOCENTE**, ADMIN
   DELETE  /api/estudiantes/{id}                ADMIN
-  GET     /api/materias     (?carreraId=1)     DOCENTE, ADMIN
+  GET     /api/materias     (?carreraId=1)     DOCENTE*, ADMIN
   POST    /api/materias                        ADMIN
   PUT     /api/materias/{id}                   ADMIN
   DELETE  /api/materias/{id}                   ADMIN
-  GET     /api/carreras                        DOCENTE, ADMIN
+  GET     /api/carreras                        DOCENTE**, ADMIN
   POST    /api/carreras                        ADMIN
   PUT     /api/carreras/{id}                   ADMIN
   DELETE  /api/carreras/{id}                   ADMIN
@@ -440,7 +504,11 @@ Ejemplo: un docente registra una nota.
   GET     /api/usuarios                        ADMIN
   POST    /api/usuarios   (crea un ADMIN)      ADMIN
   PATCH   /api/usuarios/{id}                   ADMIN
-  * el DOCENTE solo en las materias que tiene a cargo.
+  GET     /api/perfil                          cualquiera con sesión
+  PUT     /api/perfil/preferencias             cualquiera con sesión
+  PUT     /api/perfil/contrasena               cualquiera con sesión
+  *  el DOCENTE solo ve / opera en las materias que tiene a cargo.
+  ** el DOCENTE solo en las carreras donde tiene materias a cargo.
 
 Códigos de respuesta:
   200/201/204  todo bien
@@ -522,7 +590,11 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - modificar una nota que no existe da 404
   - el admin gestiona carreras y docentes; el docente no puede
   - el admin asigna docentes a materias
-  - el docente agrega y edita estudiantes, pero no los elimina
+  - el docente agrega y edita estudiantes SOLO de sus carreras (403 en
+    otras), solo los ve a ellos, y no los elimina
+  - un docente sin materias no ve carreras, materias ni estudiantes
+  - cada usuario guarda sus colores; colores inválidos dan 400
+  - cambiar la propia contraseña exige la actual
   - el docente SOLO califica sus materias (403 en las de otro docente o
     sin docente) y solo ve las notas de sus materias
   - no se pone nota de una materia de otra carrera (409)
@@ -532,7 +604,7 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - un usuario desactivado ya no puede entrar
   - la página web se sirve sin necesidad de token
 
-  Al final debe decir BUILD SUCCESS (17 tests, 0 fallos).
+  Al final debe decir BUILD SUCCESS (23 tests, 0 fallos).
 
 
 --------------------------------------------------------------------------
