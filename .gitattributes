@@ -1,0 +1,6 @@
+# Normaliza finales de línea para colaboradores en Windows, Linux y macOS
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+mvnw text eol=lf
+*.jar binary

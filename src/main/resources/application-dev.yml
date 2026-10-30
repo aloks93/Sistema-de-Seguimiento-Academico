@@ -1,0 +1,12 @@
+# Perfil de desarrollo local. NO usar estos valores en producción.
+spring:
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:ZGV2LXNvbG8tbG9jYWwtY2FtYmlhci1lbi1wcm9kdWNjaW9uLTEyMzQ1Njc4OTA=}
+  seed:
+    enabled: true

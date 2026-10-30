@@ -1,0 +1,21 @@
+# Base de datos PostgreSQL para desarrollo local: docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: seguimiento-academico-db
+    environment:
+      POSTGRES_DB: seguimiento_academico
+      POSTGRES_USER: ${DB_USERNAME:-upe}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-upe}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
