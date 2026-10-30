@@ -496,6 +496,14 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .dosfa { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
 .dosfa__pasos { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--texto-sutil); font-size: .92rem; }
 .dosfa__pasos strong { color: var(--texto); }
+.dosfa__textos { display: flex; flex-direction: column; gap: 14px; }
+.dosfa__nota {
+    display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radio-chico);
+    background: var(--superficie-2); border: 1px solid var(--borde); font-size: .82rem; color: var(--texto-sutil);
+}
+.dosfa__nota .icono { color: var(--primario); margin-top: 2px; }
+.dosfa__nota strong { color: var(--texto); }
+.dosfa__reloj { font-variant-numeric: tabular-nums; }
 .dosfa__qr { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .dosfa__qr img { width: 184px; height: 184px; padding: 10px; border-radius: 12px; background: #fff; box-shadow: var(--sombra); }
 .dosfa__clave { max-width: 220px; font-size: .8rem; color: var(--texto-sutil); }

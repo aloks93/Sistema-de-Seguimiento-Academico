@@ -22,12 +22,15 @@ class TotpTest {
     }
 
     @Test
-    void aceptaElCodigoVigenteYLosVecinosPeroNoOtros() {
+    void aceptaHastaUnMinutoDeDesfasePeroNoMas() {
         long ahora = 1_700_000_000L;
         assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora), ahora)).isTrue();
         assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora - 30), ahora)).isTrue();
         assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora + 30), ahora)).isTrue();
+        assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora - 60), ahora)).isTrue();
+        assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora + 60), ahora)).isTrue();
         assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora - 120), ahora)).isFalse();
+        assertThat(totp.verificar(secretoRfc, totp.codigoEn(secretoRfc, ahora + 120), ahora)).isFalse();
         assertThat(totp.verificar(secretoRfc, "12345", ahora)).isFalse();
         assertThat(totp.verificar(secretoRfc, "abcdef", ahora)).isFalse();
         assertThat(totp.verificar(secretoRfc, null, ahora)).isFalse();

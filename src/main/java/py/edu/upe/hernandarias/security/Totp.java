@@ -20,8 +20,11 @@ public class Totp {
 
     private static final int DIGITOS = 6;
     private static final int PERIODO_SEGUNDOS = 30;
-    /** Se aceptan el código anterior y el siguiente para tolerar relojes algo desfasados. */
-    private static final int TOLERANCIA_PASOS = 1;
+    /**
+     * Se aceptan los códigos de hasta 2 períodos antes o después (±60 s) para tolerar celulares con
+     * el reloj algo desfasado. El límite de intentos (LimiteIntentos) compensa la ventana más amplia.
+     */
+    private static final int TOLERANCIA_PASOS = 2;
 
     private final SecureRandom aleatorio = new SecureRandom();
 

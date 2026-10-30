@@ -1084,13 +1084,30 @@ async function asistenteDosFactores() {
         return;
     }
     const clave = datos.secreto.match(/.{1,4}/g).join(' ');
+
+    // Reloj del sistema en vivo: debe coincidir con la hora del celular (los códigos dependen de la hora)
+    const desfase = datos.horaServidor - Date.now();
+    const reloj = el('strong', { class: 'dosfa__reloj' });
+    const actualizarReloj = () => {
+        reloj.textContent = new Date(Date.now() + desfase).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+    actualizarReloj();
+    const intervalo = setInterval(actualizarReloj, 1000);
+    $('#modal').addEventListener('close', () => clearInterval(intervalo), { once: true });
+
     abrirFormulario({
         titulo: 'Activar verificación en dos pasos',
         antes: el('div', { class: 'dosfa' },
-            el('ol', { class: 'dosfa__pasos' },
-                el('li', {}, 'Instale ', el('strong', {}, 'Google Authenticator'), ' en su celular (Play Store o App Store).'),
-                el('li', {}, 'Toque ', el('strong', {}, '+'), ' → ', el('strong', {}, 'Escanear un código QR'), ' y apunte a este código.'),
-                el('li', {}, 'Escriba abajo el código de 6 dígitos que aparece en la app.')),
+            el('div', { class: 'dosfa__textos' },
+                el('ol', { class: 'dosfa__pasos' },
+                    el('li', {}, 'Instale ', el('strong', {}, 'Google Authenticator'), ' en su celular (Play Store o App Store).'),
+                    el('li', {}, 'Toque ', el('strong', {}, '+'), ' → ', el('strong', {}, 'Escanear un código QR'), ' y apunte a este código.'),
+                    el('li', {}, 'Escriba abajo el código de 6 dígitos que aparece en la app.')),
+                el('div', { class: 'dosfa__nota' }, icono('info'), el('span', {},
+                    '¿Ya lo intentó antes? En la app borre las entradas viejas de ', el('strong', {}, 'Seguimiento Académico UPE'),
+                    ' y use solo la que agregue ahora.')),
+                el('div', { class: 'dosfa__nota' }, icono('info'), el('span', {},
+                    'Hora del sistema: ', reloj, ' — la del celular debe coincidir (con la hora en automático).'))),
             el('div', { class: 'dosfa__qr' },
                 el('img', { src: datos.qr, alt: 'Código QR para Google Authenticator', width: 184, height: 184 }),
                 el('details', { class: 'dosfa__clave' },

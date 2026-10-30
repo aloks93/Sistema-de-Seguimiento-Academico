@@ -103,7 +103,20 @@ class DosFactoresApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.secreto").isNotEmpty())
                 .andExpect(jsonPath("$.urlOtpauth").value(startsWith("otpauth://totp/")))
-                .andExpect(jsonPath("$.qr").value(startsWith("data:image/svg+xml;base64,")));
+                .andExpect(jsonPath("$.qr").value(startsWith("data:image/svg+xml;base64,")))
+                .andExpect(jsonPath("$.horaServidor").isNumber());
+    }
+
+    @Test
+    void abrirElAsistenteOtraVezMuestraElMismoQr() throws Exception {
+        String token = tokenDe(login("ana", "secreto", null));
+        String primero = iniciar(token);
+        String segundo = iniciar(token);
+        org.assertj.core.api.Assertions.assertThat(segundo).isEqualTo(primero);
+
+        // El código de la cuenta escaneada la primera vez sigue sirviendo
+        mockMvc.perform(conToken(post("/api/perfil/2fa/activar"), token).content(codigo(codigoActual(primero))))
+                .andExpect(status().isNoContent());
     }
 
     @Test

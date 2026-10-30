@@ -55,8 +55,9 @@ public class PerfilService {
     }
 
     /**
-     * Primer paso para activar el 2FA: genera una clave nueva (pendiente hasta confirmarla con un
-     * código) y el QR para escanear con Google Authenticator.
+     * Primer paso para activar el 2FA: genera la clave (pendiente hasta confirmarla con un código)
+     * y el QR para escanear con Google Authenticator. Si ya había una pendiente se reutiliza, para
+     * que abrir el asistente otra vez no invalide el QR que la persona ya escaneó.
      */
     @Transactional
     public DosFactoresInicioResponse iniciarDosFactores(String username) {
@@ -64,12 +65,15 @@ public class PerfilService {
         if (usuario.tieneDosFactores()) {
             throw new ConflictoException("La verificación en dos pasos ya está activa");
         }
-        String secreto = totp.generarSecreto();
-        usuario.setTotpSecretoPendiente(secreto);
-        usuarioRepository.save(usuario);
+        String secreto = usuario.getTotpSecretoPendiente();
+        if (secreto == null) {
+            secreto = totp.generarSecreto();
+            usuario.setTotpSecretoPendiente(secreto);
+            usuarioRepository.save(usuario);
+        }
 
         String url = totp.urlOtpauth(EMISOR_2FA, username, secreto);
-        return new DosFactoresInicioResponse(secreto, url, generadorQr.comoDataUri(url));
+        return new DosFactoresInicioResponse(secreto, url, generadorQr.comoDataUri(url), System.currentTimeMillis());
     }
 
     /** Segundo paso: el código de la app confirma que la clave quedó bien cargada. */
@@ -80,7 +84,9 @@ public class PerfilService {
             throw new DatoInvalidoException("Primero genere el código QR");
         }
         if (!totp.verificar(usuario.getTotpSecretoPendiente(), codigo)) {
-            throw new DatoInvalidoException("El código no es correcto. Revise que la hora del celular sea la correcta");
+            throw new DatoInvalidoException("El código no coincide. Use el código de la cuenta que acaba de escanear "
+                    + "(si en la app hay entradas anteriores de este sistema, bórrelas) y verifique que la hora del "
+                    + "celular esté en automático");
         }
         usuario.setTotpSecreto(usuario.getTotpSecretoPendiente());
         usuario.setTotpSecretoPendiente(null);

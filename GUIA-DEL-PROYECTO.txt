@@ -748,9 +748,17 @@ Comandos útiles (terminal en la carpeta del proyecto):
       Primero iniciar-todo.cmd y esperar a que diga
       "Started SeguimientoAcademicoApplication".
 
-  Google Authenticator: "Código de verificación incorrecto"
-      Revisar que la hora del celular sea automática (Ajustes del celular →
-      Fecha y hora → automática). El código cambia cada 30 segundos.
+  Google Authenticator: "El código no coincide" / "Código incorrecto"
+      1. ENTRADAS VIEJAS: si se intentó activar más de una vez, en la app
+         pueden quedar varias cuentas "Seguimiento Académico UPE". Borrar
+         todas, volver a abrir "Activar" y escanear el QR una sola vez.
+         (Volver a abrir el asistente muestra el mismo QR.)
+      2. HORA: el asistente muestra la "Hora del sistema" en vivo; la del
+         celular debe coincidir. Poner la hora del celular en automático
+         (Ajustes → Fecha y hora → automática). Se toleran hasta 60
+         segundos de diferencia. El código cambia cada 30 segundos.
+      3. Si la hora de la COMPUTADORA está mal: Configuración de Windows →
+         Hora e idioma → "Sincronizar ahora".
 
   Perdí el celular y tengo verificación en dos pasos
       Pedir a un administrador: Usuarios → "Quitar 2FA" en su fila.
