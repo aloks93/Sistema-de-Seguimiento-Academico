@@ -15,6 +15,7 @@ public record CalificacionResponse(
         String nombreMateria,
         Integer creditos,
         Integer semestre,
+        String docenteNombre,
         Integer nota,
         Instant fechaRegistro,
         Instant fechaActualizacion) {
@@ -32,6 +33,7 @@ public record CalificacionResponse(
                 materia.getNombre(),
                 materia.getCreditos(),
                 materia.getSemestre(),
+                materia.getDocente() == null ? null : materia.getDocente().getNombreCompleto(),
                 calificacion.getNota(),
                 calificacion.getFechaRegistro(),
                 calificacion.getFechaActualizacion());

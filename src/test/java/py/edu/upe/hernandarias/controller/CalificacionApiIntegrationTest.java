@@ -20,11 +20,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import py.edu.upe.hernandarias.entity.Carrera;
+import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Estudiante;
 import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
+import py.edu.upe.hernandarias.repository.CarreraRepository;
+import py.edu.upe.hernandarias.repository.DocenteRepository;
 import py.edu.upe.hernandarias.repository.EstudianteRepository;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
 import py.edu.upe.hernandarias.repository.UsuarioRepository;
@@ -41,6 +45,8 @@ class CalificacionApiIntegrationTest {
     @Autowired EstudianteRepository estudianteRepository;
     @Autowired MateriaRepository materiaRepository;
     @Autowired CalificacionRepository calificacionRepository;
+    @Autowired CarreraRepository carreraRepository;
+    @Autowired DocenteRepository docenteRepository;
 
     Estudiante estudiante;
     Materia materia;
@@ -50,18 +56,26 @@ class CalificacionApiIntegrationTest {
         calificacionRepository.deleteAll();
         estudianteRepository.deleteAll();
         materiaRepository.deleteAll();
+        docenteRepository.deleteAll();
+        carreraRepository.deleteAll();
         usuarioRepository.deleteAll();
 
-        crearUsuario("docente", Rol.DOCENTE, true);
+        Carrera carrera = carreraRepository.save(
+                Carrera.builder().codigo("INF").nombre("Ingeniería en Informática").build());
+        Docente docente = docenteRepository.save(Docente.builder()
+                .usuario(crearUsuario("docente", Rol.DOCENTE, true))
+                .nombreCompleto("Carlos Benítez")
+                .build());
         crearUsuario("inactivo", Rol.DOCENTE, false);
         estudiante = estudianteRepository.save(Estudiante.builder()
                 .usuario(crearUsuario("alumno", Rol.ESTUDIANTE, true))
                 .matricula("2026-0001")
                 .nombreCompleto("Ana Pérez")
-                .carrera("Ingeniería en Informática")
+                .carrera(carrera)
                 .build());
         materia = materiaRepository.save(Materia.builder()
-                .codigo("INF-101").nombre("Programación I").creditos(4).semestre(1).build());
+                .codigo("INF-101").nombre("Programación I").creditos(4).semestre(1)
+                .carrera(carrera).docente(docente).build());
     }
 
     @Test

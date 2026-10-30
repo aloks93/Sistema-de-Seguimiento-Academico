@@ -7,10 +7,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import py.edu.upe.hernandarias.entity.Carrera;
+import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Estudiante;
 import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
+import py.edu.upe.hernandarias.repository.CarreraRepository;
+import py.edu.upe.hernandarias.repository.DocenteRepository;
 import py.edu.upe.hernandarias.repository.EstudianteRepository;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
 import py.edu.upe.hernandarias.repository.UsuarioRepository;
@@ -26,7 +30,9 @@ import py.edu.upe.hernandarias.repository.UsuarioRepository;
 public class DataSeeder implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
+    private final DocenteRepository docenteRepository;
     private final EstudianteRepository estudianteRepository;
+    private final CarreraRepository carreraRepository;
     private final MateriaRepository materiaRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -37,20 +43,32 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        crearUsuario("admin", "admin123", Rol.ADMIN);
-        crearUsuario("docente", "docente123", Rol.DOCENTE);
-        Usuario usuarioEstudiante = crearUsuario("estudiante", "estudiante123", Rol.ESTUDIANTE);
+        Carrera informatica = carreraRepository.save(
+                Carrera.builder().codigo("INF").nombre("Ingeniería en Informática").build());
+        Carrera administracion = carreraRepository.save(
+                Carrera.builder().codigo("ADM").nombre("Administración de Empresas").build());
 
-        estudianteRepository.save(Estudiante.builder()
-                .usuario(usuarioEstudiante)
-                .matricula("2026-0001")
-                .nombreCompleto("Estudiante de Prueba")
-                .carrera("Ingeniería en Informática")
+        crearUsuario("admin", "admin123", Rol.ADMIN);
+        Docente docente = docenteRepository.save(Docente.builder()
+                .usuario(crearUsuario("docente", "docente123", Rol.DOCENTE))
+                .nombreCompleto("Docente de Prueba")
                 .build());
 
-        materiaRepository.save(Materia.builder().codigo("INF-101").nombre("Programación I").creditos(4).semestre(1).build());
-        materiaRepository.save(Materia.builder().codigo("INF-102").nombre("Matemática Discreta").creditos(3).semestre(1).build());
-        materiaRepository.save(Materia.builder().codigo("INF-201").nombre("Base de Datos I").creditos(4).semestre(2).build());
+        estudianteRepository.save(Estudiante.builder()
+                .usuario(crearUsuario("estudiante", "estudiante123", Rol.ESTUDIANTE))
+                .matricula("2026-0001")
+                .nombreCompleto("Estudiante de Prueba")
+                .carrera(informatica)
+                .build());
+
+        materiaRepository.save(Materia.builder().codigo("INF-101").nombre("Programación I")
+                .creditos(4).semestre(1).carrera(informatica).docente(docente).build());
+        materiaRepository.save(Materia.builder().codigo("INF-102").nombre("Matemática Discreta")
+                .creditos(3).semestre(1).carrera(informatica).docente(docente).build());
+        materiaRepository.save(Materia.builder().codigo("INF-201").nombre("Base de Datos I")
+                .creditos(4).semestre(2).carrera(informatica).docente(docente).build());
+        materiaRepository.save(Materia.builder().codigo("ADM-101").nombre("Contabilidad I")
+                .creditos(4).semestre(1).carrera(administracion).build());
 
         log.info("Datos de ejemplo cargados (usuarios: admin, docente, estudiante)");
     }

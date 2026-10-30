@@ -9,6 +9,10 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/seguimiento_academico}
     username: ${DB_USERNAME:upe}
     password: ${DB_PASSWORD:upe}
+  flyway:
+    # Las bases creadas antes de usar migraciones se toman como versión 1 y se actualizan desde ahí
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     open-in-view: false
     hibernate:

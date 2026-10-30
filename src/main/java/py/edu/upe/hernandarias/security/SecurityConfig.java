@@ -32,13 +32,24 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Interfaz web estática (src/main/resources/static); los datos siguen protegidos por la API
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/css/**", "/js/**", "/favicon.ico")
+                                .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/estudiantes/me/**").hasRole(Rol.ESTUDIANTE.name())
-                        .requestMatchers(HttpMethod.POST, "/api/calificaciones")
+                        // Notas: el servicio además limita a cada docente a sus materias
+                        .requestMatchers("/api/calificaciones/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
-                        .requestMatchers(HttpMethod.PATCH, "/api/calificaciones/**")
+                        // Los docentes dan de alta y editan estudiantes; solo el ADMIN los elimina
+                        .requestMatchers(HttpMethod.DELETE, "/api/estudiantes/**").hasRole(Rol.ADMIN.name())
+                        .requestMatchers("/api/estudiantes/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
+                        .requestMatchers(HttpMethod.GET, "/api/materias/**", "/api/carreras/**")
+                                .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
+                        .requestMatchers("/api/materias/**", "/api/carreras/**", "/api/docentes/**",
+                                        "/api/usuarios/**")
+                                .hasRole(Rol.ADMIN.name())
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
