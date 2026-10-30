@@ -1,0 +1,388 @@
+==========================================================================
+  SISTEMA DE SEGUIMIENTO ACADÉMICO - UPE Filial Hernandarias
+  Guía completa del proyecto
+==========================================================================
+
+ÍNDICE
+  1. Qué es este proyecto
+  2. Cómo probarlo rápido (doble clic)
+  3. Qué se necesita tener instalado
+  4. Archivos de la carpeta principal
+  5. El código fuente, parte por parte
+  6. Cómo funciona por dentro (el recorrido de una petición)
+  7. Endpoints de la API
+  8. Base de datos
+  9. Tests
+ 10. Problemas comunes y cómo resolverlos
+ 11. Cómo trabajar en equipo con Git
+
+
+--------------------------------------------------------------------------
+1. QUÉ ES ESTE PROYECTO
+--------------------------------------------------------------------------
+Es una API REST (un programa "servidor" sin pantallas) para gestionar las
+calificaciones de los estudiantes:
+
+  - Los DOCENTES y ADMIN pueden registrar y modificar notas (de 0 a 100).
+  - Los ESTUDIANTES pueden consultar sus propias notas.
+  - Todos tienen que iniciar sesión primero; el sistema les da un "token"
+    (JWT) que deben enviar en cada petición para demostrar quiénes son.
+
+Tecnologías:
+  - Java 21 ............... lenguaje de programación
+  - Spring Boot 3.5 ....... framework que arma el servidor web
+  - Spring Security + JWT . inicio de sesión y permisos por rol
+  - Spring Data JPA ....... guarda y lee datos de la base sin escribir SQL
+  - PostgreSQL ............ base de datos (corre dentro de Docker)
+  - Lombok ................ genera getters/setters/constructores automáticamente
+  - Maven ................. descarga librerías y compila (se usa mvnw.cmd,
+                            no hace falta instalarlo)
+
+
+--------------------------------------------------------------------------
+2. CÓMO PROBARLO RÁPIDO (DOBLE CLIC)
+--------------------------------------------------------------------------
+Abrir la carpeta del proyecto en el Explorador de archivos y:
+
+  Paso 1. Doble clic en  verificar-requisitos.cmd
+          Muestra qué tiene la computadora y qué le falta. Si falta algo,
+          aparece una lista con el link de descarga de cada cosa.
+
+  Paso 2. Doble clic en  iniciar.cmd
+          Vuelve a verificar, levanta la base de datos y arranca la API.
+          La PRIMERA vez tarda varios minutos (descarga librerías).
+          Está lista cuando aparece:
+              Started SeguimientoAcademicoApplication
+          NO cerrar esa ventana mientras se usa la API.
+          Para apagarla: Ctrl + C dentro de la ventana.
+
+  Paso 3. Con la ventana de iniciar.cmd abierta, doble clic en
+          probar-api.cmd
+          Inicia sesión como docente, registra una nota, inicia sesión
+          como estudiante, muestra sus notas y comprueba que un estudiante
+          NO pueda registrar notas. Si todo sale bien dice:
+              === La API funciona correctamente ===
+
+  Extra.  Doble clic en  ejecutar-tests.cmd
+          Corre los tests automáticos. Solo necesita Java (no Docker).
+
+También se pueden ejecutar desde la terminal de VS Code (estando en la
+carpeta del proyecto):
+    .\verificar-requisitos.cmd
+    .\iniciar.cmd
+    .\probar-api.cmd
+    .\ejecutar-tests.cmd
+
+Usuarios de ejemplo (se crean solos la primera vez):
+    Usuario      Contraseña      Rol
+    admin        admin123        ADMIN
+    docente      docente123      DOCENTE
+    estudiante   estudiante123   ESTUDIANTE (matrícula 2026-0001)
+
+Materias de ejemplo:
+    id 1 = INF-101 Programación I
+    id 2 = INF-102 Matemática Discreta
+    id 3 = INF-201 Base de Datos I
+
+
+--------------------------------------------------------------------------
+3. QUÉ SE NECESITA TENER INSTALADO
+--------------------------------------------------------------------------
+  OBLIGATORIO
+  - Java 21 (JDK)
+      https://adoptium.net/temurin/releases/?version=21
+      o en PowerShell:  winget install EclipseAdoptium.Temurin.21.JDK
+      Al instalar, marcar "Set JAVA_HOME variable".
+
+  - Docker Desktop (para la base de datos PostgreSQL)
+      https://www.docker.com/products/docker-desktop/
+      o en PowerShell:  winget install Docker.DockerDesktop
+      Después de instalar: reiniciar la PC y ABRIR Docker Desktop antes
+      de usar iniciar.cmd (tiene que estar abierto, no solo instalado).
+      Alternativa sin Docker: instalar PostgreSQL y crear la base
+      "seguimiento_academico" con usuario "upe" y contraseña "upe".
+
+  - Internet la primera vez (descarga ~150 MB de librerías).
+
+  OPCIONAL
+  - Git, para descargar y subir cambios: https://git-scm.com/download/win
+  - VS Code con el "Extension Pack for Java" para editar el código.
+
+  NO HACE FALTA instalar Maven: el proyecto trae mvnw.cmd que lo descarga
+  solo.
+
+Después de instalar cualquier cosa: cerrar TODAS las ventanas de VS Code y
+de terminal y volver a abrirlas (si no, Windows no "ve" el programa nuevo).
+
+
+--------------------------------------------------------------------------
+4. ARCHIVOS DE LA CARPETA PRINCIPAL
+--------------------------------------------------------------------------
+  verificar-requisitos.cmd  Revisa qué tiene instalado la PC y qué falta.
+  iniciar.cmd               Verifica, levanta la base de datos y arranca la API.
+  probar-api.cmd            Prueba automática de la API ya iniciada.
+  ejecutar-tests.cmd        Corre los tests automáticos.
+  scripts\                  El código (PowerShell) de los cuatro .cmd de arriba.
+
+  GUIA-DEL-PROYECTO.txt     Este archivo.
+  README.md                 Documentación técnica (se ve linda en GitHub).
+  CONTRIBUTING.md           Reglas para trabajar en equipo (ramas, commits, PR).
+
+  pom.xml                   "Receta" del proyecto para Maven: versión de Java
+                            y lista de librerías (dependencias).
+  mvnw / mvnw.cmd           Maven Wrapper: descarga y usa Maven sin instalarlo.
+                            mvnw es para Linux/Mac, mvnw.cmd para Windows.
+  .mvn\                     Configuración del Maven Wrapper (qué versión bajar).
+
+  docker-compose.yml        Define el contenedor de PostgreSQL 16:
+                            base "seguimiento_academico", usuario/clave upe/upe,
+                            puerto 5432. Los datos se guardan en un volumen
+                            "pgdata", así que no se pierden al apagar.
+  .env.example              Ejemplo de variables de configuración. Se copia
+                            como .env para cambiar valores (el .env NO se sube
+                            a GitHub porque puede tener contraseñas).
+
+  .gitignore                Archivos que Git ignora (target/, .env, .vscode/...).
+  .gitattributes            Normaliza los saltos de línea entre Windows y Linux.
+  .editorconfig             Estilo de indentación común para todos los editores.
+  .github\                  Cosas de GitHub:
+      workflows\ci.yml        Integración continua: GitHub compila y corre los
+                              tests automáticamente en cada push / Pull Request.
+      ISSUE_TEMPLATE\         Plantillas para reportar bugs o pedir funciones.
+      pull_request_template.md  Plantilla al abrir un Pull Request.
+
+  src\                      Código fuente (ver sección 5).
+  target\                   Se genera al compilar. No se edita ni se sube.
+
+
+--------------------------------------------------------------------------
+5. EL CÓDIGO FUENTE, PARTE POR PARTE
+--------------------------------------------------------------------------
+Todo el código Java está en:
+    src\main\java\py\edu\upe\hernandarias\
+
+El proyecto está organizado en CAPAS. Cada carpeta (paquete) tiene un
+trabajo distinto:
+
+  SeguimientoAcademicoApplication.java
+      Punto de entrada. Tiene el main() que arranca todo el servidor.
+
+  controller\  -> RECIBE las peticiones HTTP y devuelve respuestas JSON.
+                  No tiene lógica: solo llama al service.
+      AuthController ............ POST /api/auth/login
+      CalificacionController .... POST /api/calificaciones (registrar nota)
+                                  PATCH /api/calificaciones/{id} (modificar)
+      EstudianteController ...... GET /api/estudiantes/me/calificaciones
+                                  (el estudiante ve sus notas)
+
+  service\     -> LÓGICA DE NEGOCIO: las reglas del sistema.
+      AuthService ............... Comprueba usuario y contraseña y genera el
+                                  token JWT.
+      CalificacionService ....... Registrar nota (verifica que existan el
+                                  estudiante y la materia, y que no haya ya
+                                  una nota para esa materia), modificar nota
+                                  y listar las notas de un estudiante.
+
+  repository\  -> ACCESO A LA BASE DE DATOS. Son interfaces: Spring Data
+                  JPA escribe el SQL automáticamente según el nombre del
+                  método.
+      UsuarioRepository, EstudianteRepository,
+      MateriaRepository, CalificacionRepository
+
+  entity\      -> Clases que representan las TABLAS de la base de datos.
+      Usuario ......... tabla usuarios (username, contraseña cifrada, rol)
+      Estudiante ...... tabla estudiantes (matrícula, nombre, carrera)
+      Materia ......... tabla materias (código, nombre, créditos, semestre)
+      Calificacion .... tabla calificaciones (nota de 0 a 100, fechas)
+      Rol ............. lista fija de roles: ADMIN, DOCENTE, ESTUDIANTE
+
+  dto\         -> Objetos que ENTRAN y SALEN por la API (Data Transfer
+                  Objects). Se usan para no exponer las entidades
+                  directamente y para validar los datos recibidos.
+      LoginRequest / LoginResponse ............ datos del login y el token
+      CalificacionRequest ..................... datos para registrar nota
+      CalificacionUpdateRequest ............... datos para modificar nota
+      CalificacionResponse .................... nota que devuelve la API
+
+  security\    -> INICIO DE SESIÓN Y PERMISOS.
+      SecurityConfig ............ Define qué rol puede usar cada ruta y
+                                  cifra contraseñas con BCrypt.
+      JwtService ................ Crea y lee los tokens JWT.
+      JwtAuthenticationFilter ... Se ejecuta en CADA petición: lee el header
+                                  "Authorization: Bearer <token>" y, si es
+                                  válido, identifica al usuario.
+      JwtProperties ............. Lee la clave secreta y la duración del
+                                  token desde la configuración.
+      UsuarioDetailsService ..... Busca el usuario en la base para Spring
+                                  Security.
+
+  exception\   -> MANEJO DE ERRORES.
+      RecursoNoEncontradoException ... se lanza cuando algo no existe (404)
+      ConflictoException ............. se lanza ante duplicados (409)
+      GlobalExceptionHandler ......... atrapa todos los errores y los
+                                       convierte en respuestas JSON claras
+                                       (formato estándar RFC 7807).
+
+  config\
+      DataSeeder ................ Carga los usuarios y materias de ejemplo
+                                  la primera vez (solo en modo desarrollo).
+
+Configuración (src\main\resources\):
+  application.yml ......... configuración general (base de datos, puerto
+                            8080, JWT). Lee valores de variables de entorno.
+  application-dev.yml ..... modo desarrollo (el que se usa por defecto):
+                            crea las tablas solas, muestra el SQL y carga
+                            datos de ejemplo.
+
+Tests (src\test\):
+  CalificacionApiIntegrationTest.java ... tests de toda la API (sección 9).
+  application-test.yml .................. usa una base H2 en memoria.
+
+
+--------------------------------------------------------------------------
+6. CÓMO FUNCIONA POR DENTRO (EL RECORRIDO DE UNA PETICIÓN)
+--------------------------------------------------------------------------
+Ejemplo: un docente registra una nota.
+
+  1. El docente hace login (POST /api/auth/login) y recibe un token.
+  2. Envía POST /api/calificaciones con el token en el header.
+  3. JwtAuthenticationFilter valida el token -> sabe que es "docente".
+  4. SecurityConfig comprueba que el rol DOCENTE puede usar esa ruta.
+  5. CalificacionController recibe el JSON y valida (nota entre 0 y 100).
+  6. CalificacionService aplica las reglas (¿existe el estudiante? ¿la
+     materia? ¿ya tiene nota?).
+  7. CalificacionRepository guarda la nota en PostgreSQL.
+  8. Se devuelve la nota creada como JSON con código 201 Created.
+  Si algo falla en cualquier paso, GlobalExceptionHandler responde con el
+  código de error adecuado.
+
+
+--------------------------------------------------------------------------
+7. ENDPOINTS DE LA API  (dirección base: http://localhost:8080)
+--------------------------------------------------------------------------
+  Método  Ruta                                 Quién puede
+  POST    /api/auth/login                      cualquiera
+  GET     /api/estudiantes/me/calificaciones   ESTUDIANTE
+  POST    /api/calificaciones                  DOCENTE, ADMIN
+  PATCH   /api/calificaciones/{id}             DOCENTE, ADMIN
+
+Códigos de respuesta:
+  200/201  todo bien
+  400      datos inválidos (ej.: nota 150)
+  401      sin token, token vencido o contraseña incorrecta
+  403      el rol no tiene permiso (ej.: estudiante registrando notas)
+  404      no existe el estudiante, la materia o la nota
+  409      ese estudiante ya tiene nota en esa materia
+
+Probar a mano desde PowerShell (con la API iniciada):
+
+  # Login del docente y guardar el token
+  $r = Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/auth/login `
+       -ContentType application/json -Body '{"username":"docente","password":"docente123"}'
+  $h = @{ Authorization = "Bearer $($r.token)" }
+
+  # Registrar nota
+  Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/calificaciones -Headers $h `
+       -ContentType application/json -Body '{"estudianteId":1,"materiaId":2,"nota":90}'
+
+  # Modificar la nota con id 1
+  Invoke-RestMethod -Method Patch -Uri http://localhost:8080/api/calificaciones/1 -Headers $h `
+       -ContentType application/json -Body '{"nota":95}'
+
+También se puede usar Postman, Insomnia o la extensión "REST Client" de
+VS Code.
+
+
+--------------------------------------------------------------------------
+8. BASE DE DATOS
+--------------------------------------------------------------------------
+  usuarios (id, username, password_hash, rol, activo)
+     | 1 a 1
+  estudiantes (id, usuario_id, matricula, nombre_completo, carrera)
+     | 1 a muchos
+  calificaciones (id, estudiante_id, materia_id, nota, fecha_registro,
+                  fecha_actualizacion)
+     | muchos a 1
+  materias (id, codigo, nombre, creditos, semestre)
+
+  Reglas: un estudiante tiene UNA sola nota por materia, y la nota va de
+  0 a 100. Las contraseñas se guardan cifradas (BCrypt), nunca en texto.
+
+Comandos útiles (terminal en la carpeta del proyecto):
+  docker compose up -d       levantar la base de datos
+  docker compose stop        apagar la base (los datos se conservan)
+  docker compose down -v     BORRAR la base por completo (se vuelve a
+                             crear con los datos de ejemplo al iniciar)
+
+
+--------------------------------------------------------------------------
+9. TESTS
+--------------------------------------------------------------------------
+  Doble clic en ejecutar-tests.cmd   (o en la terminal: .\mvnw.cmd test)
+
+  Comprueban, entre otras cosas, que:
+  - el login devuelve un token y las contraseñas se guardan cifradas
+  - se rechazan contraseñas incorrectas y usuarios inactivos
+  - sin token se responde 401
+  - un docente registra y modifica una nota y el estudiante la ve
+  - un estudiante NO puede registrar notas (403)
+  - una nota fuera de 0-100 da 400
+  - una nota duplicada da 409
+  - modificar una nota que no existe da 404
+
+  Al final debe decir BUILD SUCCESS.
+
+
+--------------------------------------------------------------------------
+10. PROBLEMAS COMUNES Y CÓMO RESOLVERLOS
+--------------------------------------------------------------------------
+  "git / java / docker no se reconoce como nombre de un cmdlet..."
+      El programa no está instalado o Windows no lo encuentra. Instalarlo,
+      cerrar TODO VS Code y las terminales, y volver a abrir. Si sigue,
+      reiniciar la PC.
+
+  "JAVA_HOME is set to an invalid directory" o "release version 21 not
+  supported"
+      Java no es la versión 21 o JAVA_HOME apunta mal. Instalar Java 21
+      marcando "Set JAVA_HOME variable" y reabrir la terminal.
+
+  "Connection to localhost:5432 refused"
+      La base de datos no está levantada: abrir Docker Desktop y volver a
+      ejecutar iniciar.cmd.
+
+  "Port 8080 was already in use"
+      La API ya está abierta en otra ventana. Cerrarla (Ctrl + C) primero.
+
+  "La ejecución de scripts está deshabilitada en este sistema"
+      Usar los archivos .cmd (doble clic): ya ejecutan los scripts con el
+      permiso necesario.
+
+  Docker Desktop no arranca / pide WSL
+      En PowerShell como administrador:  wsl --install   y reiniciar la PC.
+
+  probar-api.cmd dice "No se pudo conectar"
+      Primero iniciar.cmd y esperar a que diga
+      "Started SeguimientoAcademicoApplication".
+
+
+--------------------------------------------------------------------------
+11. CÓMO TRABAJAR EN EQUIPO CON GIT
+--------------------------------------------------------------------------
+  (detalle completo en CONTRIBUTING.md)
+
+  Primera vez:
+      git config --global user.name "Tu Nombre"
+      git config --global user.email "tu_correo_de_github@ejemplo.com"
+
+  Antes de empezar a trabajar (traer lo último):
+      git switch main
+      git pull
+      git switch -c feature/nombre-de-lo-que-hago
+
+  Guardar y subir cambios:
+      git add .
+      git commit -m "feat: descripción corta del cambio"
+      git push -u origin feature/nombre-de-lo-que-hago
+
+  Después, en GitHub, abrir un Pull Request hacia main. NUNCA trabajar
+  directamente sobre main.
