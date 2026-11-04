@@ -54,9 +54,9 @@ Los `.cmd` llaman a los scripts de PowerShell de `scripts\`. Explicación detall
 
 | Rol | Puede |
 |---|---|
-| ADMIN (super usuario) | Gestionar carreras, docentes, materias (y qué docente está a cargo de cada una), estudiantes, administradores y todas las notas |
-| DOCENTE | Ver, dar de alta y editar estudiantes **solo de las carreras donde tiene materias**; cargar, corregir y eliminar notas **solo de las materias que tiene a cargo** |
-| ESTUDIANTE | Ver sus notas, el docente de cada materia y su promedio |
+| ADMIN (super usuario) | Gestionar carreras, docentes, materias (y qué docente está a cargo de cada una), estudiantes, administradores, todas las notas y la asistencia; otorgar **exoneraciones de asistencia** |
+| DOCENTE | Ver, dar de alta y editar estudiantes **solo de las carreras donde tiene materias**; inscribir estudiantes, **pasar lista** y cargar notas **solo de las materias que tiene a cargo** |
+| ESTUDIANTE | Ver sus notas (desglosadas), su **asistencia** en cada materia y si puede rendir el examen final |
 
 Un estudiante solo puede recibir notas de materias de su carrera. Las reglas se aplican en el servidor
 (`PermisosService`): lo que no corresponde al docente no aparece en los listados y la API responde `403`.
@@ -65,6 +65,26 @@ Pantallas: panel de inicio con indicadores y avance de carga, **planilla de nota
 rápida con Enter y guardado en lote), gestión con búsqueda y filtros, y **Ajustes** donde cada usuario
 elige modo oscuro/claro, color principal, color de la barra lateral, densidad y tamaño de texto (se guarda
 en su cuenta) y cambia su contraseña. Por defecto: azul y negro.
+
+### Asistencia y notas (reglamento UPE)
+
+- **Inscripción por materia**: solo los inscriptos aparecen en la lista de asistencia y en la planilla de
+  notas. Se inscribe uno por uno o "toda la carrera" (pestaña *Inscriptos* de cada materia). Al cargar la
+  primera nota de un estudiante queda inscripto solo.
+- **Pasar lista**: el docente crea la clase del día (todos empiezan como presentes) y marca
+  **P**resente, **T**arde, **A**usente o **J**ustificada (también con esas teclas).
+- **Porcentaje y condición**: 3 llegadas tardías = 1 ausencia; la ausencia justificada queda registrada
+  pero sigue contando. El mínimo para rendir el examen final es **70 %** (configurable por carrera y por
+  materia). Si la materia tiene **clases previstas**, el sistema calcula cuántas faltas le quedan a cada
+  uno. Condiciones: *Habilitado*, *En riesgo*, *No habilitado*, *Exonerado*.
+- **Examen final**: no se le puede cargar a un estudiante *No habilitado*.
+- **Exoneración** (ADMIN): por causa justificada, hasta **2 materias por semestre**; el estudiante queda
+  habilitado aunque no llegue al mínimo.
+- **Notas desglosadas**: 1er parcial (15) + 2do parcial (15) + trabajo práctico (20) + examen final (50)
+  = 100. Se aprueba con 60; escala 1-59 = 1, 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5. Las notas
+  cargadas antes de esta versión quedan como "nota única".
+- **Reportes**: asistencia promedio por materia y carrera, condición de los estudiantes y alertas de
+  quienes están en riesgo. Excel: **planilla de asistencia** y **lista de habilitados** para el final.
 
 ### Seguridad: verificación en dos pasos (2FA)
 
@@ -94,6 +114,7 @@ El esquema de la base lo crean y actualizan las migraciones de Flyway al arranca
 | `admin` | `admin123` | ADMIN |
 | `docente` | `docente123` | DOCENTE (a cargo de las materias de Informática) |
 | `estudiante` | `estudiante123` | ESTUDIANTE (matrícula `2026-0001`, Informática) |
+| `lucia`, `marcos`, `ana`, `diego`, `sofia` | `estudiante123` | ESTUDIANTES de Informática con asistencia de ejemplo (habilitada, en riesgo, no habilitada, exonerada) |
 
 Carreras de ejemplo: `INF` Ingeniería en Informática y `ADM` Administración de Empresas.
 Materias de ejemplo: `INF-101`, `INF-102`, `INF-201` (ids 1, 2, 3) y `ADM-101` sin docente asignado.
@@ -152,6 +173,21 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `GET` | `/api/exportar/notas?materiaId=` | DOCENTE\*, ADMIN | Excel con la planilla de una materia (sin `materiaId`: todas las notas visibles) |
 | `GET` | `/api/exportar/docentes`, `/carreras` | ADMIN | Excel con el listado |
 | `GET` | `/api/exportar/mis-notas` | ESTUDIANTE | Excel con el boletín del estudiante |
+| `GET` | `/api/exportar/asistencia?materiaId=` | DOCENTE\*, ADMIN | Excel con el resumen y el detalle de asistencia de una materia |
+| `GET` | `/api/exportar/habilitados?materiaId=` | DOCENTE\*, ADMIN | Excel con la lista de habilitados para el examen final |
+| `GET` | `/api/estudiantes/me/asistencia` | ESTUDIANTE | Asistencia del estudiante en cada materia |
+| `GET` | `/api/inscripciones?materiaId=` | DOCENTE\*, ADMIN | Inscriptos de una materia |
+| `POST` | `/api/inscripciones` | DOCENTE\*, ADMIN | Inscribe estudiantes (`materiaId`, `estudianteIds`) |
+| `POST` | `/api/inscripciones/carrera-completa?materiaId=` | DOCENTE\*, ADMIN | Inscribe a todos los estudiantes activos de la carrera |
+| `DELETE` | `/api/inscripciones/{id}` | DOCENTE\*, ADMIN | Quita una inscripción sin notas ni asistencia |
+| `GET` | `/api/asistencia/clases?materiaId=` | DOCENTE\*, ADMIN | Clases de una materia con el conteo de cada estado |
+| `GET` | `/api/asistencia/clases/{id}` | DOCENTE\*, ADMIN | Lista de una clase |
+| `POST` / `PUT` | `/api/asistencia/clases` / `{id}` | DOCENTE\*, ADMIN | Registra o corrige una clase (`fecha`, `tema`, `registros`) |
+| `DELETE` | `/api/asistencia/clases/{id}` | DOCENTE\*, ADMIN | Elimina una clase y su asistencia |
+| `GET` | `/api/asistencia/resumen?materiaId=` | DOCENTE\*, ADMIN | Porcentaje y condición de cada inscripto |
+| `GET` | `/api/asistencia/reporte` | DOCENTE\*, ADMIN | Indicadores por materia y carrera, y alertas |
+| `GET` | `/api/asistencia/exoneraciones` | DOCENTE\*, ADMIN | Exoneraciones (el docente ve las de sus materias) |
+| `POST` / `DELETE` | `/api/asistencia/exoneraciones` / `{id}` | ADMIN | Otorga o quita una exoneración de asistencia |
 | `GET` | `/api/carga-masiva/plantilla?carreraId=` | ADMIN | Plantilla Excel de la carrera |
 | `POST` | `/api/carga-masiva?soloValidar=` | ADMIN | Sube la plantilla (`multipart`, campo `archivo`); valida y, si no hay errores, importa |
 
