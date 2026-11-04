@@ -80,8 +80,10 @@ en su cuenta) y cambia su contraseña. Por defecto: azul y negro.
 - **Examen final**: no se le puede cargar a un estudiante *No habilitado*.
 - **Exoneración** (ADMIN): por causa justificada, hasta **2 materias por semestre**; el estudiante queda
   habilitado aunque no llegue al mínimo.
-- **Notas desglosadas**: 1er parcial (15) + 2do parcial (15) + trabajo práctico (20) + examen final (50)
-  = 100. Se aprueba con 60; escala 1-59 = 1, 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5. Las notas
+- **Notas desglosadas**: 1er parcial + 2do parcial + trabajo práctico + examen final = 100. **Cuánto vale
+  cada parte lo define cada materia** (el docente a cargo o un ADMIN, botón *Puntajes*); por defecto
+  15 + 15 + 20 + 50. Tienen que sumar 100, el final vale al menos 1 punto y no se achica una parte que una
+  nota ya cargada supera. Se aprueba con 60; escala 1-59 = 1, 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5. Las notas
   cargadas antes de esta versión quedan como "nota única".
 - **Reportes**: asistencia promedio por materia y carrera, condición de los estudiantes y alertas de
   quienes están en riesgo. Excel: **planilla de asistencia** y **lista de habilitados** para el final.
@@ -151,6 +153,7 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `GET` | `/api/materias?carreraId=` | DOCENTE\*, ADMIN | Lista materias con su carrera y docente |
 | `POST` | `/api/materias` | ADMIN | Crea una materia (carrera obligatoria, docente opcional) |
 | `PUT` | `/api/materias/{id}` | ADMIN | Modifica una materia o cambia su docente |
+| `PUT` | `/api/materias/{id}/puntajes` | DOCENTE\*, ADMIN | Cuánto vale cada parcial, el TP y el final (suman 100) |
 | `DELETE` | `/api/materias/{id}` | ADMIN | Elimina una materia sin notas |
 | `GET` | `/api/carreras` | DOCENTE\*\*, ADMIN | Lista carreras con su cantidad de materias y estudiantes |
 | `POST` | `/api/carreras` | ADMIN | Crea una carrera |
@@ -244,7 +247,7 @@ calificaciones (id, estudiante_id, materia_id, nota, fecha_registro, fecha_actua
    UNIQUE (estudiante_id, materia_id) · CHECK (nota BETWEEN 0 AND 100)
 ```
 
-Los cambios de esquema se hacen **siempre con una migración nueva** (`V5__descripcion.sql`, …) en
+Los cambios de esquema se hacen **siempre con una migración nueva** (`V7__descripcion.sql`, …) en
 `src/main/resources/db/migration`; nunca se modifica una migración ya subida.
 
 ## Estructura del proyecto

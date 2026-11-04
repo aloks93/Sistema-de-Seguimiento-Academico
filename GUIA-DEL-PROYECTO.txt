@@ -20,8 +20,9 @@
 --------------------------------------------------------------------------
 1. QUÉ ES ESTE PROYECTO
 --------------------------------------------------------------------------
-Es un sistema para gestionar las calificaciones de los estudiantes. Tiene
-dos partes que corren juntas en el mismo programa:
+Es un sistema para gestionar las calificaciones y la ASISTENCIA de los
+estudiantes, siguiendo el reglamento de la UPE. Tiene dos partes que corren
+juntas en el mismo programa:
 
   - Una PÁGINA WEB (http://localhost:8080) con login y pantallas para
     cargar y consultar todo desde el navegador.
@@ -31,25 +32,37 @@ dos partes que corren juntas en el mismo programa:
 Cómo está organizado:
   - Hay CARRERAS (ej.: Informática, Administración, Derecho...).
   - Cada MATERIA pertenece a una carrera y tiene un DOCENTE a cargo.
-  - Cada ESTUDIANTE pertenece a una carrera.
+  - Cada ESTUDIANTE pertenece a una carrera y se INSCRIBE en las materias
+    que cursa (solo los inscriptos aparecen en la lista y en la planilla).
   - Un estudiante solo recibe notas de materias de SU carrera.
+  - La NOTA de cada materia se forma con 1er parcial + 2do parcial +
+    trabajo práctico + examen final = 100 puntos. Cuánto vale cada parte
+    lo decide cada materia (por defecto 15 + 15 + 20 + 50).
+  - Para rendir el EXAMEN FINAL hace falta un mínimo de ASISTENCIA (70 %
+    por defecto).
 
 Quién puede hacer qué (JERARQUÍA):
   - ADMIN (super usuario) .. crea carreras, docentes y materias, y decide
                              qué docente está a cargo de cada materia.
+                             Otorga EXONERACIONES de asistencia.
                              Ve y puede hacer todo.
   - DOCENTE ................ trabaja SOLO dentro de las carreras donde tiene
                              materias a cargo:
                              · ve y agrega/edita estudiantes de esas
                                carreras (no puede borrarlos);
-                             · carga notas SOLO en sus materias;
+                             · en SUS materias: inscribe estudiantes, pasa
+                               lista, carga notas y define cuánto vale cada
+                               parcial, el trabajo práctico y el final;
                              · no ve estudiantes, materias ni notas de
                                otras carreras.
                              Ejemplo: la profesora de Contabilidad no puede
                              ver ni agregar estudiantes de Informática.
                              Un docente sin materias asignadas no ve nada
                              hasta que el admin le asigne una.
-  - ESTUDIANTE ............. ve sus propias notas y su promedio.
+  - ESTUDIANTE ............. ve sus propias notas (desglosadas), su
+                             promedio y su asistencia en cada materia
+                             (con aviso si está en riesgo de no poder
+                             rendir el final).
   Todos tienen "Ajustes" para personalizar los colores de la interfaz,
   cambiar su contraseña y activar la VERIFICACIÓN EN DOS PASOS (código de
   Google Authenticator además de la contraseña).
@@ -154,6 +167,9 @@ Usuarios de ejemplo (se crean solos la primera vez):
     admin        admin123        ADMIN (super usuario)
     docente      docente123      DOCENTE (a cargo de las materias INF)
     estudiante   estudiante123   ESTUDIANTE (matrícula 2026-0001, Informática)
+    lucia, marcos, ana, diego, sofia   estudiante123   ESTUDIANTES de
+                 Informática con asistencia de ejemplo: hay uno habilitado,
+                 uno en riesgo, uno no habilitado y uno exonerado.
 
 Datos de ejemplo:
     Carreras: INF Ingeniería en Informática, ADM Administración de Empresas
@@ -161,6 +177,7 @@ Datos de ejemplo:
               id 2 = INF-102 Matemática Discreta
               id 3 = INF-201 Base de Datos I
               id 4 = ADM-101 Contabilidad I (sin docente asignado)
+    Todas empiezan con los puntajes del reglamento: 15 + 15 + 20 + 50.
 
 CÓMO USAR LA PÁGINA WEB
   Diseño: menú a la izquierda (barra lateral), título de la página arriba
@@ -172,23 +189,42 @@ CÓMO USAR LA PÁGINA WEB
   - La dirección cambia con cada pantalla (ej.: #/notas?materia=3), así que
     se puede recargar, usar "atrás" o guardar la página en favoritos.
 
+  La interfaz tiene MOVIMIENTO: al entrar a cada pantalla los bloques, las
+  tarjetas y las filas aparecen en cascada, los números de las tarjetas
+  "cuentan" hasta su valor, las barras se llenan desde cero, los botones
+  hacen una onda al tocarlos y la fila de la planilla destella en verde al
+  guardarse. Si Windows tiene activado "Efectos de animación: desactivado"
+  (o el navegador pide menos movimiento), todo eso se apaga solo.
+
   Entrando como ADMIN (admin / admin123):
   Inicio ...... resumen: carreras, materias, docentes, estudiantes, notas
-                cargadas y promedio general, más el AVANCE de carga de
-                notas de cada materia (barra "x de y estudiantes").
+                cargadas, promedio general y asistencia promedio, más el
+                AVANCE de carga de notas de cada materia y las ALERTAS de
+                estudiantes en riesgo o no habilitados.
   Notas ....... PLANILLA por materia (ver abajo).
+  Asistencia .. pasar lista, ver porcentajes e inscribir (ver abajo).
+  Reportes .... asistencia promedio por materia y por carrera, cuántos
+                estudiantes hay en cada condición y la lista de alertas.
   Estudiantes . "+ Nuevo estudiante": nombre, matrícula, carrera, usuario y
                 contraseña. Filtro por carrera. Editar ✎ / Eliminar 🗑.
   Materias .... "+ Nueva materia": código, nombre, carrera, semestre,
-                créditos y DOCENTE A CARGO. Para cambiar el profesor de una
-                materia: Editar y elegir otro docente.
+                créditos, DOCENTE A CARGO y, opcionales, ASISTENCIA MÍNIMA
+                propia (vacío = la de la carrera) y CLASES PREVISTAS (para
+                calcular cuántas faltas le quedan a cada uno).
+                Para cambiar el profesor de una materia: Editar y elegir
+                otro docente. La columna "Puntajes" muestra cuánto vale cada
+                parte de la nota; el ícono 📈 de la fila la cambia (ver
+                "PUNTAJES DE CADA MATERIA" abajo).
   Docentes .... "+ Nuevo docente": nombre completo, usuario y contraseña.
                 La tabla muestra las materias que tiene a cargo.
-  Carreras .... "+ Nueva carrera": código, nombre y DURACIÓN EN SEMESTRES
-                (1 a 12). Muestra cuántas materias y estudiantes tiene.
+  Carreras .... "+ Nueva carrera": código, nombre, DURACIÓN EN SEMESTRES
+                (1 a 12) y ASISTENCIA MÍNIMA para el final (70 % si se deja
+                vacío). Muestra cuántas materias y estudiantes tiene.
                 Botón "Plantilla" en cada fila: descarga su Excel de carga.
   Carga masiva  cargar docentes, materias y estudiantes de una carrera
                 desde Excel (ver "CARGA MASIVA POR EXCEL" abajo).
+  Exoneraciones exonerar a un estudiante de la asistencia de una materia
+                (ver "EXONERACIONES" abajo).
   Usuarios .... crear otros administradores, cambiar la contraseña de
                 cualquiera (🔑), Desactivar / Activar cuentas, ver quién
                 tiene verificación en dos pasos y "Quitar 2FA" (para quien
@@ -198,27 +234,96 @@ CÓMO USAR LA PÁGINA WEB
   Orden recomendado para cargar todo desde cero (como admin):
       1) Carreras  2) Docentes  3) Materias (asignando el docente)
   Después cada docente entra con su usuario y hace:
-      4) Estudiantes de sus carreras  5) Notas de sus materias
+      4) Estudiantes de sus carreras
+      5) Inscribirlos en sus materias (Asistencia → pestaña Inscriptos)
+      6) (opcional) Ajustar los puntajes de cada materia
+      7) Pasar lista en cada clase y cargar las notas
 
   PLANILLA DE NOTAS (pestaña Notas)
-    1. Elegir la materia arriba. Aparece la lista de TODOS los estudiantes
-       de la carrera de esa materia, con su nota si ya tienen.
-    2. Escribir las notas (0 a 100). Enter pasa al siguiente estudiante.
-       Cada fila muestra su estado: Guardada / Sin nota / Sin guardar /
-       Debe ser de 0 a 100.
-    3. Abajo aparece una barra "N notas sin guardar" con "Guardar cambios"
+    1. Elegir la materia arriba. Aparecen los estudiantes INSCRIPTOS en esa
+       materia, con su nota si ya tienen. Arriba se ve un resumen (carrera,
+       docente, cuántos tienen nota, promedio) y el botón "Puntajes" con la
+       distribución de la materia.
+    2. Cada estudiante tiene 4 casilleros: 1er parcial, 2do parcial,
+       trabajo práctico y examen final. El encabezado muestra cuánto vale
+       cada uno en ESA materia (ej.: "1er parcial /15"). El TOTAL es la suma
+       y la CALIFICACIÓN (1 a 5) aparece recién cuando hay examen final:
+         1-59 = 1 (reprobado)   60-69 = 2   70-79 = 3   80-90 = 4   91-100 = 5
+    3. Enter baja al mismo casillero del estudiante siguiente (se carga una
+       columna entera rápido). Cada fila muestra su estado: Guardada /
+       Sin nota / Sin guardar / Valor fuera de rango.
+    4. El casillero del EXAMEN FINAL queda bloqueado para quien NO está
+       habilitado por asistencia (chip "No habilitado" junto al nombre).
+    5. Abajo aparece una barra "N notas sin guardar" con "Guardar cambios"
        y "Descartar". Enter en el último estudiante también guarda.
-    4. Para borrar una nota: el ícono 🗑 de su fila.
+    6. Para borrar una nota: el ícono 🗑 de su fila.
     Si se intenta salir de la planilla con notas sin guardar, el sistema
-    pregunta antes de perderlas.
+    pregunta antes de perderlas. Las notas cargadas antes de que existiera
+    el desglose aparecen como "Nota única".
 
-  Entrando como DOCENTE: Inicio (resumen de SUS materias), Notas (solo sus
-  materias), Estudiantes (solo de sus carreras; puede agregar y editar,
-  no eliminar), Mis materias y Ajustes. Si todavía no tiene materias,
-  aparece un aviso para pedírselas al administrador.
+  PUNTAJES DE CADA MATERIA (cuánto vale cada parcial, el TP y el final)
+    Lo cambia el DOCENTE A CARGO de la materia o un ADMIN:
+      - en Notas, botón "Puntajes 15 + 15 + 20 + 50" del resumen, o
+      - en Materias, ícono 📈 de la fila.
+    Se abre una ventana con los 4 valores y una barra de colores que muestra
+    la proporción mientras se escribe. Reglas:
+      - los 4 tienen que sumar 100 (el total se pone verde al llegar);
+      - el examen final vale al menos 1 punto; los demás pueden valer 0
+        (ej.: una materia sin trabajo práctico: 25 + 25 + 0 + 50);
+      - se aprueba siempre con 60 puntos;
+      - si ya hay notas cargadas, no se puede achicar una parte por debajo
+        de lo que alguien ya sacó (ej.: si un alumno tiene 14 en el 1er
+        parcial, ese parcial no puede pasar a valer 10). El sistema avisa
+        cuántas notas lo impiden.
+    Las materias nuevas empiezan con el reglamento: 15 + 15 + 20 + 50.
 
-  Entrando como ESTUDIANTE: "Mis notas" con promedio, materias con nota,
-  créditos cursados, mejor nota, y cada materia con su docente y su nota.
+  ASISTENCIA (pestaña Asistencia)
+    Elegir la materia arriba. Tiene tres pestañas:
+    Clases ............. "Nueva clase": fecha y tema. Todos empiezan como
+                         PRESENTES; se marca a cada uno P (presente),
+                         T (tarde), A (ausente) o J (justificada), con el
+                         mouse o con esas teclas. Se puede agregar una
+                         observación. Las clases anteriores se pueden
+                         abrir, corregir o borrar.
+    Asistencia y habilitados  porcentaje de cada estudiante, faltas que le
+                         quedan (si la materia tiene clases previstas) y su
+                         CONDICIÓN.
+    Inscriptos ......... inscribir estudiantes uno por uno o "toda la
+                         carrera"; quitar a quien se inscribió por error
+                         (no se puede si ya tiene asistencia o notas).
+    Cómo se calcula (reglamento UPE):
+      - 3 llegadas tarde = 1 ausencia.
+      - La ausencia JUSTIFICADA queda registrada pero cuenta como ausencia.
+      - Mínimo para rendir el final: 70 % (la carrera o la materia pueden
+        tener otro).
+      - Condiciones: HABILITADO, EN RIESGO, NO HABILITADO (debajo del
+        mínimo) y EXONERADO. "En riesgo" = le quedan 2 faltas o menos (si
+        la materia tiene clases previstas) o está a menos de 10 puntos del
+        mínimo (si no las tiene).
+    Botones de Excel: "Planilla de asistencia" (resumen + una columna por
+    clase con P/T/A/J) y "Habilitados para el final".
+
+  EXONERACIONES (solo admin)
+    Por causa justificada (enfermedad, trabajo...) un admin puede exonerar
+    a un estudiante de la asistencia de una materia: queda HABILITADO para
+    el final aunque no llegue al mínimo. Máximo 2 materias por semestre por
+    estudiante. Se indica el motivo y queda registrado quién la otorgó.
+    Los docentes ven quién está exonerado (chip "Exonerado" en sus listas)
+    pero no las pueden dar ni quitar.
+
+  Entrando como DOCENTE: Inicio (resumen y alertas de SUS materias), Notas
+  y Asistencia (solo sus materias), Reportes, Estudiantes (solo de sus
+  carreras; puede agregar y editar, no eliminar), Mis materias (con el
+  botón de puntajes) y Ajustes. Si todavía no tiene materias, aparece un
+  aviso para pedírselas al administrador.
+
+  Entrando como ESTUDIANTE:
+    Mis notas ...... promedio, materias con nota, aprobadas, mejor nota, y
+                     cada materia con sus parciales, TP y final mostrados
+                     como "obtenido /máximo" de esa materia (ej.: "12 /15").
+    Mi asistencia .. una tarjeta por materia con su porcentaje, el mínimo,
+                     las clases dictadas, el detalle de cada clase y si
+                     puede rendir el final, con aviso cuando está en riesgo.
 
   AJUSTES (todos los usuarios)
     Apariencia ... Modo (Oscuro / Claro / Automático según Windows),
@@ -248,8 +353,10 @@ CÓMO USAR LA PÁGINA WEB
   EXPORTAR A EXCEL
     Botón "Exportar" (ícono ⬇) arriba a la derecha en Estudiantes, Materias,
     Docentes y Carreras (respeta el filtro de carrera elegido). En la planilla
-    de notas: "Exportar planilla" (todos los estudiantes de la carrera con su
-    nota y el promedio). En Inicio: "Exportar todas las notas". El estudiante
+    de notas: "Exportar planilla" (los inscriptos con su total, calificación
+    y cada componente; el encabezado dice cuánto vale cada uno en esa
+    materia). En Asistencia: "Planilla de asistencia" y "Habilitados para el
+    final". En Inicio: "Exportar todas las notas". El estudiante
     tiene "Descargar en Excel" en Mis notas. Cada uno exporta SOLO lo que
     puede ver (un docente, solo sus carreras y materias).
 
@@ -373,9 +480,13 @@ trabajo distinto:
                   No tiene lógica: solo llama al service.
       AuthController ............ login
       CalificacionController .... listar, registrar, modificar y eliminar notas
+      AsistenciaController ...... clases (pasar lista), resumen por materia,
+                                  reporte general y exoneraciones
+      InscripcionController ..... inscribir / quitar estudiantes de materias
       EstudianteController ...... listar, crear, editar y eliminar estudiantes,
-                                  y "mis notas" del estudiante
-      MateriaController ......... listar, crear, editar y eliminar materias
+                                  y "mis notas" / "mi asistencia" del estudiante
+      MateriaController ......... listar, crear, editar y eliminar materias, y
+                                  cambiar sus PUNTAJES (PUT .../puntajes)
       CarreraController ......... listar, crear, editar y eliminar carreras
       DocenteController ......... listar, crear, editar y eliminar docentes
       UsuarioController ......... listar usuarios, crear administradores,
@@ -393,16 +504,27 @@ trabajo distinto:
       PerfilService ............. Guarda las preferencias de apariencia,
                                   cambia la propia contraseña y activa /
                                   desactiva la verificación en dos pasos.
-      AuthService ............... (login) si el usuario tiene 2FA, pide y
-                                  verifica el código de 6 dígitos.
       AuthService ............... Comprueba usuario y contraseña y genera el
-                                  token JWT.
+                                  token JWT. Si el usuario tiene 2FA, pide y
+                                  verifica el código de 6 dígitos.
       CalificacionService ....... Registrar, modificar, eliminar y listar
                                   notas. Reglas: el DOCENTE solo opera en
                                   las materias que tiene a cargo (y solo ve
                                   esas notas); el estudiante tiene que ser de
                                   la carrera de la materia; una sola nota
-                                  por estudiante y materia.
+                                  por estudiante y materia; cada componente
+                                  no supera lo que vale en la materia; el
+                                  examen final solo a quien está habilitado.
+      AsistenciaService ......... Clases y asistencia, resumen por materia,
+                                  reportes, alertas y exoneraciones (máximo
+                                  2 por semestre).
+      CalculoAsistencia ......... LA FÓRMULA del reglamento: porcentaje,
+                                  3 tardanzas = 1 ausencia, faltas que
+                                  quedan y condición (habilitado, en riesgo,
+                                  no habilitado, exonerado).
+      InscripcionService ........ Inscribe (uno por uno o la carrera entera)
+                                  y no deja quitar a quien ya tiene
+                                  asistencia o notas.
       EstudianteService ......... Crea el estudiante junto con su usuario
                                   (contraseña cifrada); no deja repetir
                                   matrícula ni usuario, ni borrar a quien
@@ -413,6 +535,9 @@ trabajo distinto:
                                   deja borrar a quien tiene materias a cargo.
       MateriaService ............ Asigna carrera y docente; no deja repetir
                                   código ni borrar materias con notas.
+                                  Cambia los PUNTAJES: tienen que sumar 100
+                                  y no se achica una parte si alguna nota
+                                  ya cargada la supera.
       CarreraService ............ No deja repetir código ni nombre, ni borrar
                                   carreras con materias o estudiantes.
       UsuarioService ............ Crea administradores; un admin no puede
@@ -422,17 +547,28 @@ trabajo distinto:
                   JPA escribe el SQL automáticamente según el nombre del
                   método.
       UsuarioRepository, DocenteRepository, EstudianteRepository,
-      CarreraRepository, MateriaRepository, CalificacionRepository
+      CarreraRepository, MateriaRepository, CalificacionRepository,
+      InscripcionRepository, ClaseRepository, AsistenciaRepository,
+      ExoneracionRepository
 
   entity\      -> Clases que representan las TABLAS de la base de datos.
       Usuario ......... tabla usuarios (username, contraseña cifrada, rol,
                         preferencias de apariencia)
       Docente ......... tabla docentes (nombre completo; enlazado a su usuario)
       Estudiante ...... tabla estudiantes (matrícula, nombre, carrera)
-      Carrera ......... tabla carreras (código, nombre)
+      Carrera ......... tabla carreras (código, nombre, semestres,
+                        asistencia mínima)
       Materia ......... tabla materias (código, nombre, créditos, semestre,
-                        carrera y docente a cargo)
-      Calificacion .... tabla calificaciones (nota de 0 a 100, fechas)
+                        carrera, docente a cargo, asistencia mínima propia,
+                        clases previstas y los PUNTAJES de cada componente)
+      Calificacion .... tabla calificaciones (nota total de 0 a 100, sus
+                        componentes y fechas)
+      Inscripcion ..... tabla inscripciones (estudiante cursa materia)
+      Clase ........... tabla clases (una por materia y fecha, con tema)
+      Asistencia ...... tabla asistencias (estado de cada inscripto en
+                        cada clase)
+      EstadoAsistencia  PRESENTE, TARDE, AUSENTE, JUSTIFICADO
+      Exoneracion ..... tabla exoneraciones (motivo y quién la otorgó)
       Rol ............. lista fija de roles: ADMIN, DOCENTE, ESTUDIANTE
 
   dto\         -> Objetos que ENTRAN y SALEN por la API (Data Transfer
@@ -442,7 +578,10 @@ trabajo distinto:
                   ...Response (lo que se devuelve), por ejemplo:
       LoginRequest / LoginResponse ............ datos del login y el token
       CalificacionRequest / ...Response ....... registrar nota / nota devuelta
+      ComponentesNota ......................... arma la nota desde sus partes
+                                                y controla los máximos
       MateriaRequest / MateriaResponse ........ materia con carrera y docente
+      PuntajesRequest / PuntajesResponse ...... cuánto vale cada componente
       DocenteRequest / DocenteResponse ........ docente con sus materias
 
   security\    -> INICIO DE SESIÓN Y PERMISOS.
@@ -483,9 +622,9 @@ trabajo distinto:
                                        (formato estándar RFC 7807).
 
   config\
-      DataSeeder ................ Carga carreras, usuarios y materias de
-                                  ejemplo la primera vez (solo en modo
-                                  desarrollo).
+      DataSeeder ................ Carga carreras, usuarios, materias,
+                                  inscripciones y asistencia de ejemplo la
+                                  primera vez (solo en modo desarrollo).
 
 Página web (src\main\resources\static\):
   index.html .............. pantalla de login y el "marco" (barra lateral,
@@ -493,12 +632,17 @@ Página web (src\main\resources\static\):
   css\estilos.css ......... todo el diseño. Los colores son VARIABLES
                             (--primario, --barra, --fondo...) que cambian
                             según el modo y las preferencias del usuario.
-                            Se adapta a celular.
+                            Se adapta a celular. Al final está la sección
+                            "MOVIMIENTO" con todas las animaciones.
   js\ (módulos de JavaScript, sin librerías externas):
       app.js ......... navegación (#/inicio, #/notas...) y TODAS las
-                       pantallas: inicio, planilla de notas, estudiantes,
-                       materias, docentes, carreras, usuarios, mis notas
+                       pantallas: inicio, planilla de notas, asistencia,
+                       reportes, estudiantes, materias, docentes, carreras,
+                       exoneraciones, usuarios, mis notas, mi asistencia
                        y ajustes. Muestra a cada rol solo lo suyo.
+                       animarEntrada() hace la entrada en cascada y el
+                       contador de números; formularioPuntajes() es la
+                       ventana para cambiar los puntajes.
       nucleo.js ...... sesión (token), llamadas a la API con fetch() y
                        utilidades (fechas, números, búsqueda sin tildes).
       ui.js .......... piezas reutilizables: íconos, botones, avisos,
@@ -519,11 +663,23 @@ Configuración (src\main\resources\):
                                       los datos viejos (no se pierde nada)
       V3__preferencias_usuario.sql .. columna para los colores de cada usuario
       V4__semestres_y_dos_factores.sql  duración de cada carrera y claves 2FA
+      V5__asistencia_inscripciones_y_notas_desglosadas.sql
+                                      inscripciones, clases, asistencias,
+                                      exoneraciones y notas por componente
+      V6__puntajes_por_materia.sql .. cuánto vale cada parcial, el TP y el
+                                      final en cada materia (las existentes
+                                      quedan en 15 + 15 + 20 + 50)
     Para cambiar la estructura de la base: crear un archivo NUEVO
-    (V5__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
+    (V7__lo_que_cambia.sql). Nunca editar uno que ya se subió a GitHub.
 
 Tests (src\test\):
   CalificacionApiIntegrationTest.java ... login, permisos y notas (sección 9).
+  AsistenciaApiIntegrationTest.java ..... inscripción, pasar lista,
+                                          condición para el final,
+                                          exoneraciones, notas desglosadas,
+                                          PUNTAJES por materia, reportes y
+                                          Excel de asistencia.
+  CalculoAsistenciaTest.java ............ la fórmula del reglamento.
   GestionApiIntegrationTest.java ........ carreras, docentes, materias,
                                           estudiantes, usuarios, la
                                           jerarquía de cada rol y la web.
@@ -546,10 +702,12 @@ Ejemplo: un docente registra una nota.
   2. Envía POST /api/calificaciones con el token en el header.
   3. JwtAuthenticationFilter valida el token -> sabe que es "docente".
   4. SecurityConfig comprueba que el rol DOCENTE puede usar esa ruta.
-  5. CalificacionController recibe el JSON y valida (nota entre 0 y 100).
+  5. CalificacionController recibe el JSON y valida (valores entre 0 y 100).
   6. CalificacionService aplica las reglas (¿existe el estudiante? ¿la
      materia? ¿la materia es de ESTE docente? ¿el estudiante es de la
-     carrera de la materia? ¿ya tiene nota?).
+     carrera de la materia? ¿ya tiene nota? ¿algún parcial supera lo que
+     vale en esa materia? si trae examen final, ¿está habilitado por
+     asistencia?).
   7. CalificacionRepository guarda la nota en PostgreSQL.
   8. Se devuelve la nota creada como JSON con código 201 Created.
   Si algo falla en cualquier paso, GlobalExceptionHandler responde con el
@@ -562,11 +720,26 @@ Ejemplo: un docente registra una nota.
   Método  Ruta                                 Quién puede
   POST    /api/auth/login                      cualquiera
   GET     /api/estudiantes/me/calificaciones   ESTUDIANTE
+  GET     /api/estudiantes/me/asistencia       ESTUDIANTE
   GET     /api/calificaciones                  DOCENTE*, ADMIN  (filtros:
                                                ?estudianteId=1&materiaId=2)
   POST    /api/calificaciones                  DOCENTE*, ADMIN
   PATCH   /api/calificaciones/{id}             DOCENTE*, ADMIN
   DELETE  /api/calificaciones/{id}             DOCENTE*, ADMIN
+  GET     /api/inscripciones?materiaId=1       DOCENTE*, ADMIN
+  POST    /api/inscripciones                   DOCENTE*, ADMIN
+  POST    /api/inscripciones/carrera-completa?materiaId=1   DOCENTE*, ADMIN
+  DELETE  /api/inscripciones/{id}              DOCENTE*, ADMIN
+  GET     /api/asistencia/clases?materiaId=1   DOCENTE*, ADMIN
+  GET     /api/asistencia/clases/{id}          DOCENTE*, ADMIN
+  POST    /api/asistencia/clases               DOCENTE*, ADMIN (pasar lista)
+  PUT     /api/asistencia/clases/{id}          DOCENTE*, ADMIN
+  DELETE  /api/asistencia/clases/{id}          DOCENTE*, ADMIN
+  GET     /api/asistencia/resumen?materiaId=1  DOCENTE*, ADMIN
+  GET     /api/asistencia/reporte              DOCENTE*, ADMIN
+  GET     /api/asistencia/exoneraciones        DOCENTE*, ADMIN
+  POST    /api/asistencia/exoneraciones        ADMIN
+  DELETE  /api/asistencia/exoneraciones/{id}   ADMIN
   GET     /api/estudiantes  (?carreraId=1)     DOCENTE**, ADMIN
   POST    /api/estudiantes                     DOCENTE**, ADMIN
   PUT     /api/estudiantes/{id}                DOCENTE**, ADMIN
@@ -574,6 +747,8 @@ Ejemplo: un docente registra una nota.
   GET     /api/materias     (?carreraId=1)     DOCENTE*, ADMIN
   POST    /api/materias                        ADMIN
   PUT     /api/materias/{id}                   ADMIN
+  PUT     /api/materias/{id}/puntajes          DOCENTE*, ADMIN  (cuánto vale
+                                               cada parcial, el TP y el final)
   DELETE  /api/materias/{id}                   ADMIN
   GET     /api/carreras                        DOCENTE**, ADMIN
   POST    /api/carreras                        ADMIN
@@ -593,6 +768,8 @@ Ejemplo: un docente registra una nota.
   GET     /api/exportar/estudiantes | materias | notas     DOCENTE*, ADMIN
   GET     /api/exportar/docentes | carreras                ADMIN
   GET     /api/exportar/mis-notas                          ESTUDIANTE
+  GET     /api/exportar/asistencia?materiaId=1             DOCENTE*, ADMIN
+  GET     /api/exportar/habilitados?materiaId=1            DOCENTE*, ADMIN
   GET     /api/carga-masiva/plantilla?carreraId=1          ADMIN
   POST    /api/carga-masiva?soloValidar=true|false         ADMIN
   *  el DOCENTE solo ve / opera en las materias que tiene a cargo.
@@ -600,14 +777,16 @@ Ejemplo: un docente registra una nota.
 
 Códigos de respuesta:
   200/201/204  todo bien
-  400      datos inválidos (ej.: nota 150)
+  400      datos inválidos (ej.: nota 150, un parcial de 16 cuando vale
+           15, o puntajes que no suman 100)
   401      sin token, token vencido o contraseña incorrecta
   403      el rol no tiene permiso (ej.: estudiante registrando notas, o
            docente cargando notas en una materia que no es suya)
   404      no existe lo que se pide
   409      algo repetido (nota en la misma materia, matrícula, código,
-           usuario), materia de otra carrera que la del estudiante, o se
-           intenta borrar algo que está en uso
+           usuario), materia de otra carrera que la del estudiante, examen
+           final a un estudiante no habilitado, achicar un puntaje que una
+           nota ya supera, o se intenta borrar algo que está en uso
 
 Probar a mano desde PowerShell (con la API iniciada):
 
@@ -624,6 +803,16 @@ Probar a mano desde PowerShell (con la API iniciada):
   Invoke-RestMethod -Method Patch -Uri http://localhost:8080/api/calificaciones/1 -Headers $h `
        -ContentType application/json -Body '{"nota":95}'
 
+  # Nota desglosada (1er parcial, 2do parcial, TP y final)
+  Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/calificaciones -Headers $h `
+       -ContentType application/json `
+       -Body '{"estudianteId":1,"materiaId":3,"primerParcial":12,"segundoParcial":14,"trabajoPractico":18}'
+
+  # Cambiar los puntajes de la materia 2: parciales de 20, sin TP, final de 60
+  Invoke-RestMethod -Method Put -Uri http://localhost:8080/api/materias/2/puntajes -Headers $h `
+       -ContentType application/json `
+       -Body '{"primerParcial":20,"segundoParcial":20,"trabajoPractico":0,"examenFinal":60}'
+
 También se puede usar Postman, Insomnia o la extensión "REST Client" de
 VS Code.
 
@@ -631,23 +820,36 @@ VS Code.
 --------------------------------------------------------------------------
 8. BASE DE DATOS
 --------------------------------------------------------------------------
-  carreras (id, codigo, nombre)
+  carreras (id, codigo, nombre, semestres, asistencia_minima)
      |-- 1 a muchos -- estudiantes (id, usuario_id, matricula,
      |                              nombre_completo, carrera_id)
      |-- 1 a muchos -- materias (id, codigo, nombre, creditos, semestre,
-                                 carrera_id, docente_id)
+                                 carrera_id, docente_id, asistencia_minima,
+                                 clases_previstas, puntaje_primer_parcial,
+                                 puntaje_segundo_parcial,
+                                 puntaje_trabajo_practico,
+                                 puntaje_examen_final)
 
   usuarios (id, username, password_hash, rol, activo)
      |-- 1 a 1 -- estudiantes.usuario_id
      |-- 1 a 1 -- docentes (id, usuario_id, nombre_completo)
                      |-- 1 a muchos -- materias.docente_id (docente a cargo)
 
-  calificaciones (id, estudiante_id, materia_id, nota, fecha_registro,
-                  fecha_actualizacion)
+  calificaciones (id, estudiante_id, materia_id, nota, primer_parcial,
+                  segundo_parcial, trabajo_practico, examen_final,
+                  fecha_registro, fecha_actualizacion)
+  inscripciones  (id, estudiante_id, materia_id, fecha_registro)
+  clases         (id, materia_id, fecha, tema)
+     |-- 1 a muchos -- asistencias (id, clase_id, estudiante_id, estado,
+                                    observacion)
+  exoneraciones  (id, estudiante_id, materia_id, motivo, otorgada_por)
 
   Reglas: un estudiante tiene UNA sola nota por materia, la nota va de
-  0 a 100, y solo puede tener notas de materias de su carrera. Las
-  contraseñas se guardan cifradas (BCrypt), nunca en texto.
+  0 a 100, y solo puede tener notas de materias de su carrera. Los
+  puntajes de cada materia suman 100 (la base lo controla con un CHECK) y
+  el examen final vale al menos 1. Una sola clase por materia y día, y una
+  sola asistencia por estudiante y clase. Las contraseñas se guardan
+  cifradas (BCrypt), nunca en texto.
 
   Las tablas las crea y actualiza Flyway con los archivos de
   src\main\resources\db\migration (ver sección 5). Si alguien tenía la
@@ -698,8 +900,19 @@ Comandos útiles (terminal en la carpeta del proyecto):
   - las notas se filtran por estudiante y por materia
   - un usuario desactivado ya no puede entrar
   - la página web se sirve sin necesidad de token
+  - el docente inscribe estudiantes de la carrera en SUS materias
+  - pasar lista, 3 tardanzas = 1 ausencia, la justificada cuenta como
+    ausencia, y la condición para el final con y sin clases previstas
+  - no se carga examen final a un estudiante no habilitado
+  - exoneraciones: solo el admin, máximo 2 por semestre
+  - la nota desglosada es la suma de sus componentes
+  - PUNTAJES: el docente cambia cuánto vale cada parte y la planilla lo
+    respeta; tienen que sumar 100; el final vale al menos 1; no se achica
+    una parte que una nota ya supera (409); otro docente o un estudiante
+    no los pueden cambiar (403)
+  - reportes de asistencia y Excel de habilitados
 
-  Al final debe decir BUILD SUCCESS (40 tests, 0 fallos).
+  Al final debe decir BUILD SUCCESS (61 tests, 0 fallos).
 
 
 --------------------------------------------------------------------------
@@ -766,6 +979,28 @@ Comandos útiles (terminal en la carpeta del proyecto):
   La carga masiva dice "no es una plantilla del sistema"
       Hay que usar el Excel descargado desde el sistema (tiene una hoja
       oculta que indica la carrera). No crear uno nuevo desde cero.
+
+  "Los puntajes tienen que sumar 100"
+      Los 4 valores (2 parciales, TP y final) deben sumar exactamente 100.
+      La ventana de puntajes muestra el total en vivo (en verde cuando da).
+
+  "INF-101 tiene 3 notas con puntajes mayores a los nuevos máximos"
+      Se quiso achicar una parte (ej.: el 1er parcial a 10) pero hay
+      alumnos que ya sacaron más que eso. Corregir esas notas en la
+      planilla o elegir un máximo más alto.
+
+  "En INF-101 el 1er parcial vale 15 puntos; no se pueden cargar 16"
+      Se escribió más de lo que vale esa parte en la materia. Si la
+      distribución está mal, cambiarla con el botón "Puntajes".
+
+  "... no está habilitado para el examen final"
+      El estudiante no llega a la asistencia mínima. Ver su porcentaje en
+      Asistencia → "Asistencia y habilitados". Si tiene causa justificada,
+      un admin puede exonerarlo (Exoneraciones).
+
+  El Excel muestra letras raras (ej.: "MatrÃ­cula")
+      Era un error de codificación del archivo ExportacionService.java en
+      una versión anterior; ya está corregido. Actualizar con git pull.
 
   Quiero empezar con la base vacía
       comandos\detener-backend.cmd y después
