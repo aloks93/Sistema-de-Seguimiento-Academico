@@ -1,6 +1,7 @@
 package py.edu.upe.hernandarias.service;
 
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,17 +13,21 @@ import py.edu.upe.hernandarias.dto.CalificacionUpdateRequest;
 import py.edu.upe.hernandarias.entity.Calificacion;
 import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Estudiante;
+import py.edu.upe.hernandarias.entity.Inscripcion;
 import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.exception.ConflictoException;
 import py.edu.upe.hernandarias.exception.OperacionNoPermitidaException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
 import py.edu.upe.hernandarias.repository.EstudianteRepository;
+import py.edu.upe.hernandarias.repository.InscripcionRepository;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
 
 /**
  * Reglas de las notas: un ADMIN opera sobre cualquier materia; un DOCENTE solo sobre
- * las materias que tiene a cargo. El estudiante debe ser de la carrera de la materia.
+ * las materias que tiene a cargo. El estudiante debe ser de la carrera de la materia
+ * (al cargarle la primera nota queda inscripto) y solo rinde el examen final si su asistencia
+ * lo habilita (ver {@link CalculoAsistencia}).
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,8 @@ public class CalificacionService {
     private final CalificacionRepository calificacionRepository;
     private final EstudianteRepository estudianteRepository;
     private final MateriaRepository materiaRepository;
+    private final InscripcionRepository inscripcionRepository;
+    private final AsistenciaService asistenciaService;
     private final PermisosService permisosService;
 
     /** Calificaciones del estudiante vinculado al usuario autenticado. */
@@ -89,11 +96,14 @@ public class CalificacionService {
                             .formatted(estudiante.getMatricula(), materia.getCodigo()));
         }
 
-        Calificacion calificacion = Calificacion.builder()
-                .estudiante(estudiante)
-                .materia(materia)
-                .nota(request.nota())
-                .build();
+        Calificacion calificacion = Calificacion.builder().estudiante(estudiante).materia(materia).build();
+        request.componentes().aplicarA(calificacion);
+        if (calificacion.getExamenFinal() != null) {
+            verificarHabilitacion(estudiante, materia);
+        }
+        if (!inscripcionRepository.existsByEstudianteIdAndMateriaId(estudiante.getId(), materia.getId())) {
+            inscripcionRepository.save(Inscripcion.builder().estudiante(estudiante).materia(materia).build());
+        }
 
         return CalificacionResponse.from(calificacionRepository.saveAndFlush(calificacion));
     }
@@ -103,7 +113,11 @@ public class CalificacionService {
         Calificacion calificacion = buscar(id);
         verificarPermiso(calificacion.getMateria(), username);
 
-        calificacion.setNota(request.nota());
+        Integer finalAnterior = calificacion.getExamenFinal();
+        request.componentes().aplicarA(calificacion);
+        if (calificacion.getExamenFinal() != null && !Objects.equals(finalAnterior, calificacion.getExamenFinal())) {
+            verificarHabilitacion(calificacion.getEstudiante(), calificacion.getMateria());
+        }
 
         // flush para que @UpdateTimestamp se refleje en la respuesta
         return CalificacionResponse.from(calificacionRepository.saveAndFlush(calificacion));
@@ -119,6 +133,19 @@ public class CalificacionService {
     private Calificacion buscar(Long id) {
         return calificacionRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Calificación", id));
+    }
+
+    /** Quien no alcanza la asistencia mínima (y no está exonerado) no puede rendir el examen final. */
+    private void verificarHabilitacion(Estudiante estudiante, Materia materia) {
+        CalculoAsistencia.Resultado asistencia = asistenciaService.resultado(estudiante.getId(), materia);
+        if (!asistencia.condicion().habilitadoParaFinal()) {
+            String motivo = materia.getClasesPrevistas() != null
+                    ? "tiene %d ausencias y superó las permitidas para el %d %% de %d clases".formatted(
+                            asistencia.ausenciasComputadas(), materia.asistenciaMinimaEfectiva(), materia.getClasesPrevistas())
+                    : "asistencia %s %% (mínimo %d %%)".formatted(asistencia.porcentaje(), materia.asistenciaMinimaEfectiva());
+            throw new ConflictoException("%s no está habilitado para el examen final de %s: %s"
+                    .formatted(estudiante.getNombreCompleto(), materia.getCodigo(), motivo));
+        }
     }
 
     private void verificarPermiso(Materia materia, String username) {

@@ -4,6 +4,8 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import py.edu.upe.hernandarias.entity.Docente;
+import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.exception.OperacionNoPermitidaException;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
@@ -39,6 +41,19 @@ public class PermisosService {
         if (!esAdmin(username) && !carrerasDelDocente(username).contains(carreraId)) {
             throw new OperacionNoPermitidaException(
                     "Solo puede gestionar estudiantes de las carreras donde tiene materias a cargo");
+        }
+    }
+
+    /** Lanza 403 si el usuario no es ADMIN ni el docente a cargo de la materia. */
+    @Transactional(readOnly = true)
+    public void verificarMateria(Materia materia, String username) {
+        if (esAdmin(username)) {
+            return;
+        }
+        Docente docente = materia.getDocente();
+        if (docente == null || !docente.getUsuario().getUsername().equals(username)) {
+            throw new OperacionNoPermitidaException(
+                    "Solo el docente a cargo de %s puede gestionarla".formatted(materia.getCodigo()));
         }
     }
 }

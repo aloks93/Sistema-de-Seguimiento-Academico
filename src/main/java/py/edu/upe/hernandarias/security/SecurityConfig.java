@@ -42,8 +42,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/exportar/docentes", "/api/exportar/carreras", "/api/carga-masiva/**")
                                 .hasRole(Rol.ADMIN.name())
                         .requestMatchers("/api/exportar/**").hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
-                        // Notas: el servicio además limita a cada docente a sus materias
-                        .requestMatchers("/api/calificaciones/**")
+                        // Las exoneraciones de asistencia las otorga y quita solo un ADMIN (los docentes las ven)
+                        .requestMatchers(HttpMethod.POST, "/api/asistencia/exoneraciones/**").hasRole(Rol.ADMIN.name())
+                        .requestMatchers(HttpMethod.DELETE, "/api/asistencia/exoneraciones/**").hasRole(Rol.ADMIN.name())
+                        // Notas, asistencia e inscripciones: el servicio además limita a cada docente a sus materias
+                        .requestMatchers("/api/calificaciones/**", "/api/asistencia/**", "/api/inscripciones/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
                         // Los docentes dan de alta y editan estudiantes; solo el ADMIN los elimina
                         .requestMatchers(HttpMethod.DELETE, "/api/estudiantes/**").hasRole(Rol.ADMIN.name())

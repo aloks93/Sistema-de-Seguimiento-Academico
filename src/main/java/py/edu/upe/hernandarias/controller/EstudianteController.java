@@ -19,6 +19,8 @@ import py.edu.upe.hernandarias.dto.CalificacionResponse;
 import py.edu.upe.hernandarias.dto.EstudianteRequest;
 import py.edu.upe.hernandarias.dto.EstudianteResponse;
 import py.edu.upe.hernandarias.dto.EstudianteUpdateRequest;
+import py.edu.upe.hernandarias.dto.MiAsistenciaResponse;
+import py.edu.upe.hernandarias.service.AsistenciaService;
 import py.edu.upe.hernandarias.service.CalificacionService;
 import py.edu.upe.hernandarias.service.EstudianteService;
 
@@ -33,11 +35,18 @@ public class EstudianteController {
 
     private final CalificacionService calificacionService;
     private final EstudianteService estudianteService;
+    private final AsistenciaService asistenciaService;
 
     /** Notas del estudiante autenticado (rol ESTUDIANTE, ver SecurityConfig). */
     @GetMapping("/me/calificaciones")
     public List<CalificacionResponse> misCalificaciones(Authentication authentication) {
         return calificacionService.listarPorUsuario(authentication.getName());
+    }
+
+    /** Asistencia del estudiante autenticado en cada materia que cursa (rol ESTUDIANTE). */
+    @GetMapping("/me/asistencia")
+    public List<MiAsistenciaResponse> miAsistencia(Authentication authentication) {
+        return asistenciaService.miAsistencia(authentication.getName());
     }
 
     @GetMapping

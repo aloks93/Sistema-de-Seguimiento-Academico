@@ -5,6 +5,11 @@ import py.edu.upe.hernandarias.entity.Calificacion;
 import py.edu.upe.hernandarias.entity.Estudiante;
 import py.edu.upe.hernandarias.entity.Materia;
 
+/**
+ * @param nota         puntaje total de 0 a 100
+ * @param desglosada   {@code true} si se cargó por componentes (parciales, trabajo práctico, final)
+ * @param calificacion escala de 1 a 5; {@code null} mientras falta el examen final de una nota desglosada
+ */
 public record CalificacionResponse(
         Long id,
         Long estudianteId,
@@ -17,6 +22,12 @@ public record CalificacionResponse(
         Integer semestre,
         String docenteNombre,
         Integer nota,
+        Integer primerParcial,
+        Integer segundoParcial,
+        Integer trabajoPractico,
+        Integer examenFinal,
+        boolean desglosada,
+        Integer calificacion,
         Instant fechaRegistro,
         Instant fechaActualizacion) {
 
@@ -35,6 +46,12 @@ public record CalificacionResponse(
                 materia.getSemestre(),
                 materia.getDocente() == null ? null : materia.getDocente().getNombreCompleto(),
                 calificacion.getNota(),
+                calificacion.getPrimerParcial(),
+                calificacion.getSegundoParcial(),
+                calificacion.getTrabajoPractico(),
+                calificacion.getExamenFinal(),
+                calificacion.esDesglosada(),
+                calificacion.calificacionFinal(),
                 calificacion.getFechaRegistro(),
                 calificacion.getFechaActualizacion());
     }

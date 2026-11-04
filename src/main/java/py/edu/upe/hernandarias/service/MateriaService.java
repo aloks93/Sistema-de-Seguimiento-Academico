@@ -1,6 +1,8 @@
 package py.edu.upe.hernandarias.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +16,10 @@ import py.edu.upe.hernandarias.exception.DatoInvalidoException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
 import py.edu.upe.hernandarias.repository.CarreraRepository;
+import py.edu.upe.hernandarias.repository.ClaseRepository;
 import py.edu.upe.hernandarias.repository.DocenteRepository;
+import py.edu.upe.hernandarias.repository.ExoneracionRepository;
+import py.edu.upe.hernandarias.repository.InscripcionRepository;
 import py.edu.upe.hernandarias.repository.MateriaRepository;
 
 @Service
@@ -25,6 +30,9 @@ public class MateriaService {
     private final CarreraRepository carreraRepository;
     private final DocenteRepository docenteRepository;
     private final CalificacionRepository calificacionRepository;
+    private final InscripcionRepository inscripcionRepository;
+    private final ClaseRepository claseRepository;
+    private final ExoneracionRepository exoneracionRepository;
     private final PermisosService permisosService;
 
     /**
@@ -43,7 +51,11 @@ public class MateriaService {
         } else {
             materias = materiaRepository.findByCarreraIdOrderBySemestreAscNombreAsc(carreraId);
         }
-        return materias.stream().map(MateriaResponse::from).toList();
+        Map<Long, Long> inscriptos = inscripcionRepository.contarPorMateria().stream()
+                .collect(Collectors.toMap(fila -> (Long) fila[0], fila -> (Long) fila[1]));
+        return materias.stream()
+                .map(materia -> MateriaResponse.from(materia, inscriptos.getOrDefault(materia.getId(), 0L)))
+                .toList();
     }
 
     @Transactional
@@ -63,9 +75,11 @@ public class MateriaService {
                 .semestre(request.semestre())
                 .carrera(carrera)
                 .docente(buscarDocente(request.docenteId()))
+                .asistenciaMinima(request.asistenciaMinima())
+                .clasesPrevistas(request.clasesPrevistas())
                 .build();
 
-        return MateriaResponse.from(materiaRepository.save(materia));
+        return MateriaResponse.from(materiaRepository.save(materia), 0);
     }
 
     @Transactional
@@ -77,9 +91,10 @@ public class MateriaService {
         }
         Carrera carrera = buscarCarrera(request.carreraId());
         verificarSemestre(request.semestre(), carrera);
-        if (!carrera.getId().equals(materia.getCarrera().getId()) && calificacionRepository.existsByMateriaId(id)) {
-            throw new ConflictoException(
-                    "La materia %s ya tiene notas; no se puede cambiar de carrera".formatted(materia.getCodigo()));
+        if (!carrera.getId().equals(materia.getCarrera().getId()) && (calificacionRepository.existsByMateriaId(id)
+                || inscripcionRepository.existsByMateriaId(id) || claseRepository.existsByMateriaId(id))) {
+            throw new ConflictoException("La materia %s ya tiene inscriptos, notas o clases; no se puede cambiar de carrera"
+                    .formatted(materia.getCodigo()));
         }
 
         materia.setCodigo(codigo);
@@ -88,18 +103,25 @@ public class MateriaService {
         materia.setSemestre(request.semestre());
         materia.setCarrera(carrera);
         materia.setDocente(buscarDocente(request.docenteId()));
+        materia.setAsistenciaMinima(request.asistenciaMinima());
+        materia.setClasesPrevistas(request.clasesPrevistas());
 
-        return MateriaResponse.from(materiaRepository.save(materia));
+        return MateriaResponse.from(materiaRepository.save(materia), inscripcionRepository.countByMateriaId(id));
     }
 
-    /** Solo se eliminan materias sin notas, para no perder calificaciones por accidente. */
+    /**
+     * Solo se eliminan materias sin notas ni clases, para no perder datos por accidente.
+     * Sus inscripciones y exoneraciones se borran con ella.
+     */
     @Transactional
     public void eliminar(Long id) {
         Materia materia = buscar(id);
-        if (calificacionRepository.existsByMateriaId(id)) {
-            throw new ConflictoException(
-                    "La materia %s tiene notas cargadas; elimine primero esas notas".formatted(materia.getCodigo()));
+        if (calificacionRepository.existsByMateriaId(id) || claseRepository.existsByMateriaId(id)) {
+            throw new ConflictoException("La materia %s tiene notas o clases registradas; elimínelas primero"
+                    .formatted(materia.getCodigo()));
         }
+        exoneracionRepository.eliminarDeLaMateria(id);
+        inscripcionRepository.eliminarDeLaMateria(id);
         materiaRepository.delete(materia);
     }
 

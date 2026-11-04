@@ -273,7 +273,8 @@ public class CargaMasivaService {
         }
         for (NuevaMateria materia : materias) {
             materiaService.crear(new MateriaRequest(materia.codigo(), materia.nombre(), materia.creditos(), materia.semestre(),
-                    carrera.getId(), materia.docente() == null ? null : idDocentePorUsuario.get(materia.docente())));
+                    carrera.getId(), materia.docente() == null ? null : idDocentePorUsuario.get(materia.docente()),
+                    null, null));
         }
         for (NuevoEstudiante estudiante : estudiantes) {
             estudianteService.crear(new EstudianteRequest(estudiante.usuario(), estudiante.password(), estudiante.matricula(),

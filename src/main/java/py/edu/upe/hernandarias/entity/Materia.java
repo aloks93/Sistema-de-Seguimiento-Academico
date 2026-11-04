@@ -54,4 +54,21 @@ public class Materia {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "docente_id")
     private Docente docente;
+
+    /** Mínimo de asistencia propio de la materia; {@code null} = el de la carrera. */
+    @Min(0)
+    @Max(100)
+    @Column(name = "asistencia_minima")
+    private Integer asistenciaMinima;
+
+    /** Clases previstas en el semestre (opcional): permite calcular las faltas que le quedan a cada alumno. */
+    @Min(1)
+    @Max(300)
+    @Column(name = "clases_previstas")
+    private Integer clasesPrevistas;
+
+    /** El mínimo que rige para esta materia. */
+    public int asistenciaMinimaEfectiva() {
+        return asistenciaMinima != null ? asistenciaMinima : carrera.getAsistenciaMinima();
+    }
 }

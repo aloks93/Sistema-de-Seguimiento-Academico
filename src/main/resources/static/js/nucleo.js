@@ -36,6 +36,9 @@ const NOMBRES_CAMPO = {
     matricula: 'Matrícula', nombreCompleto: 'Nombre completo', carreraId: 'Carrera', docenteId: 'Docente',
     username: 'Usuario', password: 'Contraseña', actual: 'Contraseña actual', nueva: 'Contraseña nueva',
     colorPrimario: 'Color principal', colorBarra: 'Color de la barra', semestres: 'Semestres',
+    primerParcial: '1er parcial (0 a 15)', segundoParcial: '2do parcial (0 a 15)', trabajoPractico: 'Trabajo práctico (0 a 20)',
+    examenFinal: 'Examen final (0 a 50)', asistenciaMinima: 'Asistencia mínima', clasesPrevistas: 'Clases previstas',
+    fecha: 'Fecha', tema: 'Tema', motivo: 'Motivo', estudianteIds: 'Estudiantes', registros: 'Lista',
 };
 
 export class ErrorApi extends Error {

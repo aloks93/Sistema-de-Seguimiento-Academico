@@ -49,6 +49,8 @@ public class CarreraService {
                 .codigo(codigo)
                 .nombre(nombre)
                 .semestres(request.semestres())
+                .asistenciaMinima(request.asistenciaMinima() != null
+                        ? request.asistenciaMinima() : Carrera.ASISTENCIA_MINIMA_POR_DEFECTO)
                 .build());
         return respuesta(carrera);
     }
@@ -74,6 +76,9 @@ public class CarreraService {
         carrera.setCodigo(codigo);
         carrera.setNombre(nombre);
         carrera.setSemestres(request.semestres());
+        if (request.asistenciaMinima() != null) {
+            carrera.setAsistenciaMinima(request.asistenciaMinima());
+        }
         return respuesta(carreraRepository.save(carrera));
     }
 

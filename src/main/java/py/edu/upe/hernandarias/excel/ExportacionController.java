@@ -49,4 +49,16 @@ public class ExportacionController {
     public ResponseEntity<byte[]> misNotas(Authentication authentication) {
         return exportacionService.misNotas(authentication.getName()).comoDescarga();
     }
+
+    /** Planilla de asistencia de una materia (resumen y detalle por clase). */
+    @GetMapping("/asistencia")
+    public ResponseEntity<byte[]> asistencia(@RequestParam Long materiaId, Authentication authentication) {
+        return exportacionService.asistencia(materiaId, authentication.getName()).comoDescarga();
+    }
+
+    /** Lista de habilitados para el examen final de una materia. */
+    @GetMapping("/habilitados")
+    public ResponseEntity<byte[]> habilitados(@RequestParam Long materiaId, Authentication authentication) {
+        return exportacionService.habilitados(materiaId, authentication.getName()).comoDescarga();
+    }
 }

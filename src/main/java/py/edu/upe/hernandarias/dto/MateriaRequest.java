@@ -8,7 +8,9 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * @param docenteId docente a cargo; {@code null} para dejarla sin asignar
+ * @param docenteId        docente a cargo; {@code null} para dejarla sin asignar
+ * @param asistenciaMinima mínimo propio de la materia; {@code null} = el de la carrera
+ * @param clasesPrevistas  clases previstas en el semestre (opcional)
  */
 public record MateriaRequest(
         @NotBlank @Size(max = 20) String codigo,
@@ -16,5 +18,7 @@ public record MateriaRequest(
         @NotNull @Positive Integer creditos,
         @NotNull @Min(1) @Max(12) Integer semestre,
         @NotNull Long carreraId,
-        Long docenteId) {
+        Long docenteId,
+        @Min(0) @Max(100) Integer asistenciaMinima,
+        @Min(1) @Max(300) Integer clasesPrevistas) {
 }

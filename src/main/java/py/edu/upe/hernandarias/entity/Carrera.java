@@ -39,4 +39,14 @@ public class Carrera {
     @Builder.Default
     @Column(nullable = false)
     private Integer semestres = 10;
+
+    /** Reglamento de la UPE: 70 % de las clases. */
+    public static final int ASISTENCIA_MINIMA_POR_DEFECTO = 70;
+
+    /** Porcentaje mínimo de asistencia para rendir el examen final (cada materia puede tener el suyo). */
+    @Min(0)
+    @Max(100)
+    @Builder.Default
+    @Column(name = "asistencia_minima", nullable = false)
+    private Integer asistenciaMinima = ASISTENCIA_MINIMA_POR_DEFECTO;
 }

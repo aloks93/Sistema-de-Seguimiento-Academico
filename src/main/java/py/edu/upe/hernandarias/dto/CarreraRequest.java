@@ -7,10 +7,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * @param semestres duración de la carrera (1 a 12)
+ * @param semestres        duración de la carrera (1 a 12)
+ * @param asistenciaMinima porcentaje mínimo de asistencia para rendir el final; {@code null} = 70 %
  */
 public record CarreraRequest(
         @NotBlank @Size(max = 20) String codigo,
         @NotBlank @Size(max = 120) String nombre,
-        @NotNull @Min(1) @Max(12) Integer semestres) {
+        @NotNull @Min(1) @Max(12) Integer semestres,
+        @Min(0) @Max(100) Integer asistenciaMinima) {
 }

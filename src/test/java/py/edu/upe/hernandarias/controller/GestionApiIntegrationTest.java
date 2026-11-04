@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import py.edu.upe.hernandarias.BaseDePrueba;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
@@ -39,6 +41,7 @@ import py.edu.upe.hernandarias.repository.UsuarioRepository;
 class GestionApiIntegrationTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ObjectMapper objectMapper;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired UsuarioRepository usuarioRepository;
@@ -56,6 +59,7 @@ class GestionApiIntegrationTest {
 
     @BeforeEach
     void prepararDatos() throws Exception {
+        BaseDePrueba.vaciarAsistenciaEInscripciones(jdbcTemplate);
         calificacionRepository.deleteAll();
         estudianteRepository.deleteAll();
         materiaRepository.deleteAll();

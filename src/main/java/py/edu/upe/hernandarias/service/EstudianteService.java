@@ -16,9 +16,12 @@ import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
 import py.edu.upe.hernandarias.exception.ConflictoException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
+import py.edu.upe.hernandarias.repository.AsistenciaRepository;
 import py.edu.upe.hernandarias.repository.CalificacionRepository;
 import py.edu.upe.hernandarias.repository.CarreraRepository;
 import py.edu.upe.hernandarias.repository.EstudianteRepository;
+import py.edu.upe.hernandarias.repository.ExoneracionRepository;
+import py.edu.upe.hernandarias.repository.InscripcionRepository;
 import py.edu.upe.hernandarias.repository.UsuarioRepository;
 
 @Service
@@ -29,6 +32,9 @@ public class EstudianteService {
     private final CarreraRepository carreraRepository;
     private final UsuarioRepository usuarioRepository;
     private final CalificacionRepository calificacionRepository;
+    private final InscripcionRepository inscripcionRepository;
+    private final AsistenciaRepository asistenciaRepository;
+    private final ExoneracionRepository exoneracionRepository;
     private final PasswordEncoder passwordEncoder;
     private final PermisosService permisosService;
 
@@ -93,9 +99,10 @@ public class EstudianteService {
             throw new ConflictoException("Ya existe otro estudiante con la matrícula " + matricula);
         }
         Carrera carrera = buscarCarrera(request.carreraId());
-        if (!carrera.getId().equals(estudiante.getCarrera().getId()) && calificacionRepository.existsByEstudianteId(id)) {
-            throw new ConflictoException(
-                    "El estudiante %s ya tiene notas; no se puede cambiar de carrera".formatted(estudiante.getMatricula()));
+        if (!carrera.getId().equals(estudiante.getCarrera().getId())
+                && (calificacionRepository.existsByEstudianteId(id) || inscripcionRepository.existsByEstudianteId(id))) {
+            throw new ConflictoException(("El estudiante %s ya tiene notas o materias inscriptas; "
+                    + "no se puede cambiar de carrera").formatted(estudiante.getMatricula()));
         }
 
         estudiante.setMatricula(matricula);
@@ -108,15 +115,19 @@ public class EstudianteService {
         return EstudianteResponse.from(estudianteRepository.save(estudiante));
     }
 
-    /** Elimina el estudiante y su usuario; solo si no tiene notas cargadas. */
+    /**
+     * Elimina el estudiante y su usuario; solo si no tiene notas ni asistencia registrada.
+     * Sus inscripciones y exoneraciones se borran con él.
+     */
     @Transactional
     public void eliminar(Long id) {
         Estudiante estudiante = buscar(id);
-        if (calificacionRepository.existsByEstudianteId(id)) {
-            throw new ConflictoException(
-                    "El estudiante %s tiene notas cargadas; elimine primero esas notas o desactive su usuario"
-                            .formatted(estudiante.getMatricula()));
+        if (calificacionRepository.existsByEstudianteId(id) || asistenciaRepository.existsByEstudianteId(id)) {
+            throw new ConflictoException(("El estudiante %s tiene notas o asistencia registrada; "
+                    + "elimine primero esos datos o desactive su usuario").formatted(estudiante.getMatricula()));
         }
+        exoneracionRepository.eliminarDelEstudiante(id);
+        inscripcionRepository.eliminarDelEstudiante(id);
         Usuario usuario = estudiante.getUsuario();
         estudianteRepository.delete(estudiante);
         usuarioRepository.delete(usuario);

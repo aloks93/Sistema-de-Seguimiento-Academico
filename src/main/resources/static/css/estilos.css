@@ -668,3 +668,138 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
+
+/* =====================================================================
+   Asistencia, notas desglosadas y reportes
+   ===================================================================== */
+
+/* ---------- Medidor de asistencia con marca del mínimo ---------- */
+.medidor__pista { position: relative; overflow: visible; }
+.medidor__pista .medidor__relleno { border-radius: 999px; }
+.medidor--exito .medidor__relleno { background: var(--exito); }
+.medidor--aviso .medidor__relleno { background: var(--aviso); }
+.medidor--peligro .medidor__relleno { background: var(--peligro); }
+.medidor__minimo {
+    position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px;
+    border-radius: 2px; background: var(--texto); opacity: .55;
+}
+.medidor__valor--porcentaje { min-width: 6ch; font-size: .95rem; }
+
+/* ---------- Pestañas ---------- */
+.pestanas { align-self: flex-start; flex-wrap: wrap; }
+
+/* ---------- Pasar lista ---------- */
+.segmentado--asistencia { padding: 3px; gap: 3px; }
+.segmentado--asistencia .segmento { height: 32px; padding: 0 10px; gap: 6px; }
+.segmento__letra { font-weight: 800; }
+.segmentado--asistencia .segmento[aria-pressed="true"] { box-shadow: none; color: #ffffff; }
+.segmento[data-estado="PRESENTE"][aria-pressed="true"] { background: var(--exito); color: #052e16; }
+.segmento[data-estado="TARDE"][aria-pressed="true"] { background: var(--aviso); color: #1f1300; }
+.segmento[data-estado="AUSENTE"][aria-pressed="true"] { background: var(--peligro); }
+.segmento[data-estado="JUSTIFICADO"][aria-pressed="true"] { background: var(--primario); color: var(--sobre-primario); }
+.segmento:focus-visible { outline: none; box-shadow: var(--anillo); }
+.lista-asistencia tr[data-estado="AUSENTE"] { background: color-mix(in srgb, var(--peligro) 6%, transparent); }
+.lista-asistencia tr[data-estado="TARDE"] { background: color-mix(in srgb, var(--aviso) 6%, transparent); }
+.lista-asistencia tr[data-estado=""] { background: color-mix(in srgb, var(--texto-tenue) 8%, transparent); }
+.entrada-observacion { height: 34px; min-width: 180px; font-size: .88rem; }
+.campo--fecha { flex: 0 0 190px; }
+.campo--tema { flex: 1 1 260px; }
+.resumen-materia--derecha { flex: 0 1 auto; padding-bottom: 0; justify-content: flex-end; }
+
+/* ---------- Planilla de notas desglosada ---------- */
+.planilla__nota--chica { width: 66px; }
+.planilla__componente { text-align: center; }
+.planilla tbody .planilla__componente { padding-left: 4px; padding-right: 4px; }
+.th__max { color: var(--texto-tenue); font-weight: 500; }
+.planilla__total { font-weight: 700; font-size: 1.02rem; }
+.planilla__nota:disabled { opacity: .45; cursor: not-allowed; background: var(--superficie-2); }
+.celda-estudiante { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+
+/* ---------- Avisos ---------- */
+.resultado--aviso { background: color-mix(in srgb, var(--aviso) 14%, transparent); }
+.resultado--aviso > .icono { color: var(--aviso); }
+
+/* ---------- Mi asistencia (estudiante) ---------- */
+.tarjetas-materia { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 16px; align-items: start; }
+.panel--materia .medidor__pista { height: 10px; }
+.pila--chica { gap: 12px; }
+
+/* ---------- Selección múltiple (inscribir) ---------- */
+.lista-seleccion {
+    display: flex; flex-direction: column; max-height: min(46vh, 380px); overflow-y: auto;
+    border: 1px solid var(--borde); border-radius: var(--radio-chico);
+}
+.lista-seleccion__item {
+    display: flex; align-items: center; gap: 12px; padding: 8px 12px; cursor: pointer;
+    border-bottom: 1px solid var(--borde);
+}
+.lista-seleccion__item:last-child { border-bottom: none; }
+.lista-seleccion__item:hover { background: var(--superficie-hover); }
+.lista-seleccion__item input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--primario); }
+
+/* ---------- Gráficos de reportes ---------- */
+.grafico { display: flex; flex-direction: column; gap: 14px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .84rem; color: var(--texto-sutil); }
+.leyenda__item { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda__marca { width: 12px; height: 12px; border-radius: 4px; background: var(--primario); }
+.leyenda__marca--exito { background: var(--exito); }
+.leyenda__marca--aviso { background: var(--aviso); }
+.leyenda__marca--peligro { background: var(--peligro); }
+.leyenda__marca--primario { background: var(--primario); }
+.leyenda__marca--neutro { background: var(--borde-fuerte); }
+.leyenda__marca--minimo { width: 2px; height: 14px; border-radius: 2px; background: var(--texto); opacity: .55; }
+
+.grafico-barras { display: flex; flex-direction: column; gap: 4px; }
+.grafico-barras__fila {
+    display: grid; grid-template-columns: minmax(120px, 240px) minmax(0, 1fr) 92px; align-items: center; gap: 14px;
+    padding: 6px 8px; border-radius: var(--radio-chico); outline: none;
+}
+.grafico-barras__fila:hover, .grafico-barras__fila:focus-visible { background: var(--superficie-hover); }
+.grafico-barras__etiqueta { display: flex; flex-direction: column; min-width: 0; font-size: .86rem; }
+.grafico-barras__etiqueta .sutil { font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grafico-barras__codigo { font-weight: 600; }
+.grafico-barras__pista { position: relative; height: 14px; border-radius: 4px; background: var(--superficie-2); }
+.grafico-barras__pista--vacia { border: 1px dashed var(--borde); background: transparent; }
+.grafico-barras__barra { height: 100%; border-radius: 0 4px 4px 0; background: var(--primario); transition: width 500ms cubic-bezier(.2, .7, .3, 1); }
+.grafico-barras__barra--exito { background: var(--exito); }
+.grafico-barras__barra--aviso { background: var(--aviso); }
+.grafico-barras__barra--peligro { background: var(--peligro); }
+.grafico-barras__minimo {
+    position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px;
+    background: var(--texto); opacity: .55;
+}
+.grafico-barras__valor { font-size: .86rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--texto); }
+
+.barra-apilada { display: flex; gap: 2px; height: 22px; }
+.barra-apilada__segmento {
+    display: grid; place-items: center; min-width: 6px; flex-basis: 0;
+    font-size: .74rem; font-weight: 700; color: #ffffff; font-variant-numeric: tabular-nums;
+}
+.barra-apilada__segmento:first-child { border-radius: 4px 0 0 4px; }
+.barra-apilada__segmento:last-child { border-radius: 0 4px 4px 0; }
+.barra-apilada__segmento:only-child { border-radius: 4px; }
+.barra-apilada__segmento--exito { background: var(--exito); color: #052e16; }
+.barra-apilada__segmento--aviso { background: var(--aviso); color: #1f1300; }
+.barra-apilada__segmento--peligro { background: var(--peligro); }
+.barra-apilada__segmento--primario { background: var(--primario); color: var(--sobre-primario); }
+.barra-apilada__segmento--neutro { background: var(--borde-fuerte); color: var(--texto); }
+
+@media (max-width: 640px) {
+    .grafico-barras__fila { grid-template-columns: minmax(0, 1fr) 76px; gap: 6px 10px; }
+    .grafico-barras__etiqueta { grid-column: 1 / -1; }
+    .segmento__texto { display: none; }
+    .campo--fecha, .campo--tema { flex: 1 1 100%; }
+    .entrada-observacion { min-width: 120px; }
+    .resumen-materia--derecha { justify-content: flex-start; }
+    /* Lista de asistencia: cada estudiante en dos renglones (nombre y botones, observación debajo) */
+    .lista-asistencia thead { display: none; }
+    .lista-asistencia tbody tr:not(.tabla__sin-resultados) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+    .lista-asistencia tbody td { border-bottom: none; }
+    .lista-asistencia tbody tr { border-bottom: 1px solid var(--borde); }
+    .lista-asistencia .columna-observacion { grid-column: 1 / -1; padding-top: 0; }
+    .lista-asistencia .entrada-observacion { width: 100%; }
+}
+@media (forced-colors: active) {
+    .segmento[aria-pressed="true"] { outline: 2px solid CanvasText; }
+    .grafico-barras__barra, .barra-apilada__segmento, .medidor__relleno { forced-color-adjust: none; }
+}
