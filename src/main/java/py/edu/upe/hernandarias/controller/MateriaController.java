@@ -17,10 +17,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import py.edu.upe.hernandarias.dto.MateriaRequest;
 import py.edu.upe.hernandarias.dto.MateriaResponse;
+import py.edu.upe.hernandarias.dto.PuntajesRequest;
 import py.edu.upe.hernandarias.service.MateriaService;
 
 /**
- * Consulta (DOCENTE: solo las que tiene a cargo; ADMIN: todas) y gestión (solo ADMIN) de materias,
+ * Consulta (DOCENTE: solo las que tiene a cargo; ADMIN: todas) y gestión (solo ADMIN) de materias;
+ * los puntajes de la nota los cambia también el docente a cargo,
  * ver SecurityConfig.
  */
 @RestController
@@ -45,6 +47,13 @@ public class MateriaController {
     @PutMapping("/{id}")
     public MateriaResponse actualizar(@PathVariable Long id, @Valid @RequestBody MateriaRequest request) {
         return materiaService.actualizar(id, request);
+    }
+
+    /** Cuánto vale cada componente de la nota: ADMIN o el docente a cargo (ver SecurityConfig). */
+    @PutMapping("/{id}/puntajes")
+    public MateriaResponse actualizarPuntajes(@PathVariable Long id, @Valid @RequestBody PuntajesRequest request,
+                                              Authentication authentication) {
+        return materiaService.actualizarPuntajes(id, request, authentication.getName());
     }
 
     @DeleteMapping("/{id}")

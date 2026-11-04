@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import py.edu.upe.hernandarias.dto.MateriaRequest;
 import py.edu.upe.hernandarias.dto.MateriaResponse;
+import py.edu.upe.hernandarias.dto.PuntajesRequest;
+import py.edu.upe.hernandarias.entity.Calificacion;
 import py.edu.upe.hernandarias.entity.Carrera;
 import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Materia;
@@ -106,6 +108,33 @@ public class MateriaService {
         materia.setAsistenciaMinima(request.asistenciaMinima());
         materia.setClasesPrevistas(request.clasesPrevistas());
 
+        return MateriaResponse.from(materiaRepository.save(materia), inscripcionRepository.countByMateriaId(id));
+    }
+
+    /**
+     * Cambia cuánto vale cada componente de la nota (ADMIN o el docente a cargo). Tienen que sumar 100,
+     * y no se permite si alguna nota ya cargada quedaría por encima del nuevo máximo.
+     */
+    @Transactional
+    public MateriaResponse actualizarPuntajes(Long id, PuntajesRequest request, String username) {
+        Materia materia = buscar(id);
+        permisosService.verificarMateria(materia, username);
+        if (request.suma() != Calificacion.NOTA_MAXIMA) {
+            throw new DatoInvalidoException("Los puntajes tienen que sumar %d; ahora suman %d"
+                    .formatted(Calificacion.NOTA_MAXIMA, request.suma()));
+        }
+        long superan = calificacionRepository.contarQueSuperan(id, request.primerParcial(), request.segundoParcial(),
+                request.trabajoPractico(), request.examenFinal());
+        if (superan > 0) {
+            throw new ConflictoException(("%s tiene %d %s con puntajes mayores a los nuevos máximos; "
+                    + "corríjalas antes de cambiar la distribución").formatted(
+                    materia.getCodigo(), superan, superan == 1 ? "nota" : "notas"));
+        }
+
+        materia.setPuntajePrimerParcial(request.primerParcial());
+        materia.setPuntajeSegundoParcial(request.segundoParcial());
+        materia.setPuntajeTrabajoPractico(request.trabajoPractico());
+        materia.setPuntajeExamenFinal(request.examenFinal());
         return MateriaResponse.from(materiaRepository.save(materia), inscripcionRepository.countByMateriaId(id));
     }
 

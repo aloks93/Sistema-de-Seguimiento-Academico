@@ -140,13 +140,70 @@ function chipCalificacion(calificacion) {
     return calificacion === 1 ? chip('1 · Reprobado', 'peligro') : chip(`${calificacion} · Aprobado`, 'exito');
 }
 
-/** Componentes de la nota (reglamento UPE): suman 100 puntos. */
+/**
+ * Componentes de la nota. Cuánto vale cada uno lo define cada materia (materia.puntajes, suman 100);
+ * por defecto el reglamento UPE: 15 + 15 + 20 + 50.
+ */
 const COMPONENTES_NOTA = [
-    { clave: 'primerParcial', titulo: '1er parcial', maximo: 15 },
-    { clave: 'segundoParcial', titulo: '2do parcial', maximo: 15 },
-    { clave: 'trabajoPractico', titulo: 'T. práctico', maximo: 20 },
-    { clave: 'examenFinal', titulo: 'Examen final', maximo: 50 },
+    { clave: 'primerParcial', titulo: '1er parcial', largo: '1er parcial', abreviatura: 'p1' },
+    { clave: 'segundoParcial', titulo: '2do parcial', largo: '2do parcial', abreviatura: 'p2' },
+    { clave: 'trabajoPractico', titulo: 'T. práctico', largo: 'Trabajo práctico', abreviatura: 'tp' },
+    { clave: 'examenFinal', titulo: 'Examen final', largo: 'Examen final', abreviatura: 'ef' },
 ];
+const PUNTAJES_POR_DEFECTO = { primerParcial: 15, segundoParcial: 15, trabajoPractico: 20, examenFinal: 50 };
+const puntajesDe = (materia) => materia?.puntajes ?? PUNTAJES_POR_DEFECTO;
+
+/** "15 + 15 + 20 + 50" */
+const textoPuntajes = (puntajes) => COMPONENTES_NOTA.map(({ clave }) => puntajes[clave]).join(' + ');
+
+/** Barra con la proporción de cada componente. */
+function barraDistribucion(puntajes) {
+    const descripcion = COMPONENTES_NOTA.map((c) => `${c.largo}: ${puntajes[c.clave]}`);
+    return el('div', { class: 'distribucion', role: 'img', 'aria-label': descripcion.join(', '), title: descripcion.join(' · ') },
+        COMPONENTES_NOTA.map((c) => el('span', {
+            class: `distribucion__parte distribucion__parte--${c.abreviatura}`, style: `flex-grow: ${puntajes[c.clave]}`,
+        })));
+}
+
+/** Formulario para cambiar cuánto vale cada parcial, el TP y el final (docente a cargo o ADMIN). */
+function formularioPuntajes(materia, alActualizar) {
+    const actuales = puntajesDe(materia);
+    const vista = el('div', { class: 'puntajes__vista' });
+    const dibujar = (datos) => {
+        const valores = Object.fromEntries(COMPONENTES_NOTA.map(({ clave }) => [clave, Number(datos[clave]) || 0]));
+        const suma = Object.values(valores).reduce((a, b) => a + b, 0);
+        vista.replaceChildren(
+            barraDistribucion(valores),
+            el('div', { class: 'puntajes__leyenda' },
+                COMPONENTES_NOTA.map((c) => el('span', { class: 'puntajes__clave' },
+                    el('i', { class: `distribucion__parte--${c.abreviatura}` }), `${c.largo} ${valores[c.clave]}`)),
+                el('span', { class: `puntajes__suma puntajes__suma--${suma === 100 ? 'bien' : 'mal'}` },
+                    suma === 100 ? 'Total: 100 ✓' : `Total: ${suma} (deben ser 100)`)));
+    };
+    dibujar(actuales);
+    abrirFormulario({
+        titulo: `Puntajes de ${materia.codigo}`,
+        descripcion: 'Cuánto vale cada parcial, el trabajo práctico y el examen final. Tienen que sumar 100; se aprueba con 60.',
+        antes: vista,
+        campos: COMPONENTES_NOTA.map((c) => ({
+            nombre: c.clave, etiqueta: `${c.largo} (puntos)`, tipo: 'number', min: c.clave === 'examenFinal' ? 1 : 0, max: 100,
+            inputmode: 'numeric',
+        })),
+        valores: actuales,
+        textoBoton: 'Guardar puntajes',
+        alGuardar: async (datos) => {
+            const cuerpo = Object.fromEntries(COMPONENTES_NOTA.map(({ clave }) => [clave, Number(datos[clave])]));
+            const suma = Object.values(cuerpo).reduce((a, b) => a + b, 0);
+            if (suma !== 100) throw new Error(`Los puntajes tienen que sumar 100; ahora suman ${suma}.`);
+            const actualizada = await api('PUT', `/api/materias/${materia.id}/puntajes`, cuerpo);
+            avisar(`Puntajes de ${materia.codigo}: ${textoPuntajes(actualizada.puntajes)}.`, 'exito');
+            await alActualizar?.(actualizada);
+        },
+    });
+    vista.closest('form')?.addEventListener('input', (evento) => {
+        dibujar(Object.fromEntries(new FormData(evento.currentTarget)));
+    });
+}
 
 /** Botón que descarga un Excel generado por el servidor. */
 function botonExcel(texto, ruta, variante = 'secundario') {
@@ -185,10 +242,52 @@ function ponerAcciones(...nodos) {
     $('#acciones-pagina').replaceChildren(...nodos.filter(Boolean));
 }
 
+const sinMovimiento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let temporizadorRecien = 0;
+
 function animarEntrada(nodo) {
-    nodo.classList.remove('entrando');
+    nodo.classList.remove('entrando', 'recien');
     void nodo.offsetWidth; // reinicia la animación
     nodo.classList.add('entrando');
+    if (sinMovimiento()) return;
+    // Numera bloques, tarjetas y filas para que aparezcan uno detrás de otro (ver "MOVIMIENTO" en estilos.css)
+    nodo.querySelectorAll('.pila, .tarjetas, tbody').forEach((grupo) => {
+        [...grupo.children].forEach((hijo, i) => hijo.style.setProperty('--i', Math.min(i, 18)));
+    });
+    nodo.classList.add('recien');
+    clearTimeout(temporizadorRecien);
+    temporizadorRecien = setTimeout(() => nodo.classList.remove('recien'), 1600);
+    nodo.querySelectorAll('.dato__valor').forEach(contarHasta);
+}
+
+/** Anima un número de 0 a su valor ("8,5", "72 %", "12"...). Los textos que no son números quedan igual. */
+function contarHasta(nodo) {
+    const texto = nodo.textContent.trim();
+    const partes = /^(-?\d+(?:[.,]\d+)?)(\s*%?)$/.exec(texto);
+    if (!partes) return;
+    const decimales = (partes[1].split(/[.,]/)[1] ?? '').length;
+    const separador = partes[1].includes(',') ? ',' : '.';
+    const destino = Number(partes[1].replace(',', '.'));
+    if (!Number.isFinite(destino) || destino === 0) return;
+    const duracion = 900;
+    const inicio = performance.now();
+    const paso = (ahora) => {
+        const avance = Math.min((ahora - inicio) / duracion, 1);
+        const suavizado = 1 - Math.pow(1 - avance, 3);
+        nodo.textContent = (destino * suavizado).toFixed(decimales).replace('.', separador) + partes[2];
+        if (avance < 1) requestAnimationFrame(paso);
+        else nodo.textContent = texto;
+    };
+    requestAnimationFrame(paso);
+}
+
+/** Reinicia una animación de un solo uso (latido, destello, sacudida). */
+function destacar(nodo, clase) {
+    if (!nodo || sinMovimiento()) return;
+    nodo.classList.remove(clase);
+    void nodo.offsetWidth;
+    nodo.classList.add(clase);
+    nodo.addEventListener('animationend', () => nodo.classList.remove(clase), { once: true });
 }
 
 async function puedeSalir() {
@@ -304,6 +403,7 @@ async function ingresar(evento) {
     } catch (excepcion) {
         error.replaceChildren(icono('alerta'), el('span', {}, excepcion.message));
         error.hidden = false;
+        destacar(formulario, 'sacudir');
         if (!$('#login-codigo').hidden) formulario.elements.codigo.select();
     } finally {
         botonIngresar.disabled = false;
@@ -527,11 +627,14 @@ const ESTADOS_NOTA = {
 };
 
 /**
- * Planilla de notas desglosada: dos parciales (15 + 15), trabajo práctico (20) y examen final (50).
+ * Planilla de notas desglosada: dos parciales, trabajo práctico y examen final, con los puntajes de la materia
+ * (por defecto 15 + 15 + 20 + 50).
  * El examen final solo se habilita para quien tiene la asistencia mínima (o está exonerado).
  */
 function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
     const porEstudiante = new Map(notas.map((nota) => [nota.estudianteId, nota]));
+    const puntajes = puntajesDe(materia);
+    const maximo = (columna) => puntajes[COMPONENTES_NOTA[columna].clave];
     const asistenciaDe = new Map(asistencia.estudiantes.map((fila) => [fila.estudianteId, fila]));
     const filas = [];
 
@@ -558,7 +661,7 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         const validos = textos.every((texto, i) => {
             if (texto === '') return true;
             const valor = Number(texto);
-            return Number.isInteger(valor) && valor >= 0 && valor <= COMPONENTES_NOTA[i].maximo;
+            return Number.isInteger(valor) && valor >= 0 && valor <= maximo(i);
         });
         return validos ? 'modificada' : 'invalida';
     }
@@ -577,7 +680,11 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         fila.estado = calcularEstado(fila);
         fila.tr.dataset.estado = fila.estado;
         const puntaje = total(fila);
-        fila.celdaTotal.textContent = puntaje ? puntaje.valor : '';
+        const nuevoTotal = puntaje ? String(puntaje.valor) : '';
+        if (fila.celdaTotal.textContent !== nuevoTotal) {
+            fila.celdaTotal.replaceChildren(el('span', {}, nuevoTotal));
+            if (fila.listo) destacar(fila.celdaTotal.firstChild, 'latido');
+        }
         fila.celdaCalificacion.replaceChildren(puntaje ? chipCalificacion(puntaje.completa ? escala(puntaje.valor) : null) : '');
         const notaUnica = fila.nota && !fila.nota.desglosada;
         fila.celdaEstado.replaceChildren(el('div', { class: 'chips' }, chip(...ESTADOS_NOTA[fila.estado]),
@@ -595,7 +702,11 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
             chip(`${materia.semestre}° semestre · ${materia.creditos} créditos`),
             chip(materia.docenteNombre ? `Docente: ${materia.docenteNombre}` : 'Sin docente asignado', materia.docenteNombre ? 'neutro' : 'aviso'),
             chip(`${conNota.length} de ${filas.length} con nota`),
-            chip(`Promedio: ${formatearNumero(promedio(conNota.map((fila) => fila.nota.nota)))}`));
+            chip(`Promedio: ${formatearNumero(promedio(conNota.map((fila) => fila.nota.nota)))}`),
+            el('button', { type: 'button', class: 'chip chip--boton boton-distribucion',
+                title: 'Cambiar cuánto vale cada parcial, el TP y el final',
+                onclick: () => formularioPuntajes(materia, () => navegar()) },
+            barraDistribucion(puntajes), `Puntajes ${textoPuntajes(puntajes)}`, icono('editar')));
         const cantidad = pendientes().length;
         const conError = filas.filter((fila) => fila.estado === 'invalida' || fila.estado === 'vaciada').length;
         barraGuardar.hidden = cantidad === 0 && conError === 0;
@@ -621,9 +732,9 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         const entradas = COMPONENTES_NOTA.map((componente, columna) => {
             const bloqueada = columna === 3 && sinDerechoAFinal && (nota?.examenFinal === null || nota?.examenFinal === undefined);
             return el('input', {
-                type: 'number', class: 'planilla__nota planilla__nota--chica', min: 0, max: componente.maximo, step: 1,
+                type: 'number', class: 'planilla__nota planilla__nota--chica', min: 0, max: puntajes[componente.clave], step: 1,
                 inputmode: 'numeric', disabled: bloqueada,
-                title: bloqueada ? `No habilitado por asistencia (${textoPorcentaje(filaAsistencia.porcentaje)})` : `De 0 a ${componente.maximo}`,
+                title: bloqueada ? `No habilitado por asistencia (${textoPorcentaje(filaAsistencia.porcentaje)})` : `De 0 a ${puntajes[componente.clave]}`,
                 'aria-label': `${componente.titulo} de ${alumno.nombreCompleto}`,
             });
         });
@@ -663,6 +774,7 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         fila.tr.dataset.busqueda = normalizar(`${alumno.nombreCompleto} ${alumno.matricula} ${inscripto.username}`);
         filas.push(fila);
         actualizarFila(fila);
+        fila.listo = true;
         cuerpo.append(fila.tr);
     });
     cuerpo.append(el('tr', { class: 'tabla__sin-resultados', hidden: true },
@@ -689,6 +801,7 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
                 cambios[i].nota = resultado.value;
                 cargarEntradas(cambios[i]);
                 actualizarFila(cambios[i]);
+                destacar(cambios[i].tr, 'fila--guardada');
             } else {
                 errores.push(`${cambios[i].alumno.nombreCompleto}: ${resultado.reason.message}`);
             }
@@ -731,7 +844,7 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
             el('table', { class: 'tabla planilla' },
                 el('thead', {}, el('tr', {},
                     el('th', {}, 'Estudiante'),
-                    COMPONENTES_NOTA.map((c) => el('th', { class: 'planilla__componente' }, c.titulo, el('span', { class: 'th__max' }, ` /${c.maximo}`))),
+                    COMPONENTES_NOTA.map((c) => el('th', { class: 'planilla__componente' }, c.titulo, el('span', { class: 'th__max' }, ` /${puntajes[c.clave]}`))),
                     el('th', { class: 'num' }, 'Total'), el('th', {}, 'Calificación'), el('th', {}, 'Estado'),
                     el('th', { class: 'acciones' }, ''))),
                 cuerpo))
@@ -747,7 +860,7 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         inscriptos.length > 0 && barraHerramientas(
             buscador('Buscar estudiante…', () => contenedor),
             el('span', { class: 'herramientas__ayuda' }, icono('info'),
-                'Parciales de 15, trabajo práctico de 20 y examen final de 50: se aprueba con 60. Enter baja al siguiente estudiante.'),
+                `Parciales de ${puntajes.primerParcial} y ${puntajes.segundoParcial}, trabajo práctico de ${puntajes.trabajoPractico} y examen final de ${puntajes.examenFinal}: se aprueba con 60. Enter baja al siguiente estudiante.`),
             el('span', { class: 'herramientas__empuje' }),
             boton('Asistencia', () => ir(`asistencia?materia=${materia.id}&ver=resumen`), { variante: 'fantasma', iconoNombre: 'asistencia' }),
             botonExcel('Exportar planilla', `/api/exportar/notas?materiaId=${materia.id}`)),
@@ -856,14 +969,18 @@ async function vistaMaterias(parametros) {
             { titulo: 'Créditos', clase: 'num', celda: (m) => m.creditos },
             { titulo: 'Inscriptos', clase: 'num', celda: (m) => m.inscriptos },
             { titulo: 'Asistencia mín.', clase: 'num', celda: (m) => `${m.asistenciaMinima} %` },
+            { titulo: 'Puntajes', celda: (m) => el('div', { class: 'celda-doble' },
+                barraDistribucion(puntajesDe(m)), el('span', { class: 'sutil' }, textoPuntajes(puntajesDe(m)))) },
             esAdmin() && { titulo: 'Docente', celda: (m) => (m.docenteNombre ? persona(m.docenteNombre, m.docenteUsername) : chip('Sin asignar', 'aviso')) },
             { titulo: '', clase: 'acciones', celda: (m) => (esAdmin()
                 ? [
+                    botonIcono('grafico', `Puntajes de ${m.codigo}`, () => formularioPuntajes(m, recargar)),
                     botonIcono('editar', `Editar ${m.codigo}`, () => formularioMateria(carreras, docentes, m)),
                     botonIcono('eliminar', `Eliminar ${m.codigo}`, () => eliminarRegistro(`/api/materias/${m.id}`,
                         'Eliminar materia', `Se eliminará ${m.codigo} · ${m.nombre}. Solo es posible si no tiene notas.`), 'peligro'),
                 ]
                 : [
+                    botonIcono('grafico', `Puntajes de ${m.codigo}`, () => formularioPuntajes(m, recargar)),
                     boton('Asistencia', () => ir(`asistencia?materia=${m.id}`), { variante: 'fantasma', iconoNombre: 'asistencia' }),
                     boton('Notas', () => ir(`notas?materia=${m.id}`), { variante: 'fantasma', iconoNombre: 'flecha' }),
                 ]) },
@@ -1146,14 +1263,16 @@ async function vistaMisNotas() {
     const notas = await api('GET', '/api/estudiantes/me/calificaciones');
     const valores = notas.map((nota) => nota.nota);
     if (notas.length) ponerAcciones(botonExcel('Descargar en Excel', '/api/exportar/mis-notas'));
-    const componente = (n, clave) => (n.desglosada ? (n[clave] ?? '–') : '');
+    const componente = (n, clave) => (n.desglosada
+        ? el('span', {}, n[clave] ?? '–', el('span', { class: 'sutil' }, ` /${puntajesDe(n)[clave]}`))
+        : '');
 
     const contenedor = el('div', {}, tabla({
         columnas: [
             { titulo: 'Materia', celda: (n) => el('div', { class: 'celda-doble' }, el('span', {}, n.nombreMateria),
                 el('span', { class: 'sutil' }, `${n.codigoMateria} · ${n.semestre}° semestre · ${n.docenteNombre ?? 'sin docente'}`)) },
-            ...COMPONENTES_NOTA.map(({ clave, titulo, maximo }) => ({
-                titulo: `${titulo} /${maximo}`, clase: 'num', celda: (n) => componente(n, clave),
+            ...COMPONENTES_NOTA.map(({ clave, titulo }) => ({
+                titulo, clase: 'num', celda: (n) => componente(n, clave),
             })),
             { titulo: 'Total', clase: 'columna-avance', celda: (n) => el('div', { class: 'medidor' },
                 el('span', { class: 'medidor__valor' }, n.nota),
@@ -1172,7 +1291,7 @@ async function vistaMisNotas() {
                 detalle: `${notas.filter((n) => n.calificacion === null).length} en curso` }),
             tarjetaDato({ iconoNombre: 'estrella', titulo: 'Mejor nota', valor: valores.length ? Math.max(...valores) : '–' })),
         el('p', { class: 'herramientas__ayuda' }, icono('info'),
-            'Parciales de 15, trabajo práctico de 20 y examen final de 50 (total 100). Se aprueba con 60: 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5.'),
+            'Cada materia define cuánto valen sus parciales, trabajo práctico y examen final (en total 100; por defecto 15 + 15 + 20 + 50). Se aprueba con 60: 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5.'),
         notas.length > 6 && barraHerramientas(buscador('Buscar materia…', () => contenedor)),
         contenedor);
 }
@@ -2141,6 +2260,15 @@ function formularioMiContrasena() {
 
 alExpirarSesion(() => cerrarSesion('La sesión expiró. Ingrese de nuevo.'));
 $('#form-login').addEventListener('submit', ingresar);
+// Onda que sale del punto donde se hace clic en cualquier botón
+document.addEventListener('pointerdown', (evento) => {
+    const objetivo = evento.target.closest('.boton');
+    if (!objetivo || objetivo.disabled || sinMovimiento()) return;
+    const caja = objetivo.getBoundingClientRect();
+    const onda = el('span', { class: 'onda', style: `left: ${evento.clientX - caja.left}px; top: ${evento.clientY - caja.top}px` });
+    objetivo.append(onda);
+    onda.addEventListener('animationend', () => onda.remove(), { once: true });
+});
 $('#login-volver').addEventListener('click', () => pasoDeLogin(false));
 $('#boton-salir').addEventListener('click', async () => {
     if (await puedeSalir()) cerrarSesion();

@@ -52,6 +52,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/estudiantes/**").hasRole(Rol.ADMIN.name())
                         .requestMatchers("/api/estudiantes/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
+                        // Cuánto vale cada parcial, TP y final: el docente a cargo también (el servicio lo verifica)
+                        .requestMatchers(HttpMethod.PUT, "/api/materias/*/puntajes")
+                                .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
                         .requestMatchers(HttpMethod.GET, "/api/materias/**", "/api/carreras/**")
                                 .hasAnyRole(Rol.DOCENTE.name(), Rol.ADMIN.name())
                         .requestMatchers("/api/materias/**", "/api/carreras/**", "/api/docentes/**",

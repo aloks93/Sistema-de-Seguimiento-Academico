@@ -312,9 +312,10 @@ class AsistenciaApiIntegrationTest {
         enviar(get("/api/inscripciones?materiaId=" + programacion.getId()), profe, null)
                 .andExpect(jsonPath("$.length()").value(1));
 
+        // Con los puntajes por defecto el 1er parcial vale 15
         enviar(post("/api/calificaciones"), profe, nota(beto, 16, null, null, null))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errores.primerParcial").exists());
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("vale 15 puntos")));
 
         enviar(patch("/api/calificaciones/" + id), profe, "{\"nota\":95}")
                 .andExpect(status().isOk())
@@ -322,6 +323,58 @@ class AsistenciaApiIntegrationTest {
                 .andExpect(jsonPath("$.primerParcial").doesNotExist())
                 .andExpect(jsonPath("$.calificacion").value(5));
         enviar(patch("/api/calificaciones/" + id), profe, "{}").andExpect(status().isBadRequest());
+    }
+
+    // ======================= Puntajes por materia =======================
+
+    @Test
+    void elDocenteCambiaCuantoValeCadaComponente() throws Exception {
+        enviar(get("/api/materias"), profe, null)
+                .andExpect(jsonPath("$[0].puntajes.primerParcial").value(15))
+                .andExpect(jsonPath("$[0].puntajes.examenFinal").value(50));
+
+        enviar(put(rutaPuntajes(programacion)), profe, puntajes(20, 20, 0, 60))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.puntajes.primerParcial").value(20))
+                .andExpect(jsonPath("$.puntajes.trabajoPractico").value(0))
+                .andExpect(jsonPath("$.puntajes.examenFinal").value(60));
+
+        // Ahora el parcial admite 20 y el TP ninguno
+        enviar(post("/api/calificaciones"), profe, nota(ana, 20, 18, null, null))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nota").value(38))
+                .andExpect(jsonPath("$.puntajes.segundoParcial").value(20));
+        enviar(post("/api/calificaciones"), profe, nota(beto, null, null, 5, null))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("trabajo práctico vale 0")));
+    }
+
+    @Test
+    void losPuntajesTienenQueSumar100() throws Exception {
+        enviar(put(rutaPuntajes(programacion)), profe, puntajes(15, 15, 20, 40))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("ahora suman 90")));
+        // El examen final vale al menos 1 punto
+        enviar(put(rutaPuntajes(programacion)), profe, puntajes(50, 30, 20, 0))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.examenFinal").exists());
+    }
+
+    @Test
+    void noSeAchicaUnComponenteSiHayNotasQueLoSuperan() throws Exception {
+        enviar(post("/api/calificaciones"), profe, nota(ana, 14, null, null, null)).andExpect(status().isCreated());
+
+        enviar(put(rutaPuntajes(programacion)), profe, puntajes(10, 20, 20, 50))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("1 nota")));
+        enviar(put(rutaPuntajes(programacion)), profe, puntajes(14, 16, 20, 50)).andExpect(status().isOk());
+    }
+
+    @Test
+    void soloElDocenteACargoOUnAdminCambianLosPuntajes() throws Exception {
+        enviar(put(rutaPuntajes(algoritmos)), profe, puntajes(20, 20, 20, 40)).andExpect(status().isForbidden());
+        enviar(put(rutaPuntajes(algoritmos)), login("ana"), puntajes(20, 20, 20, 40)).andExpect(status().isForbidden());
+        enviar(put(rutaPuntajes(algoritmos)), admin, puntajes(20, 20, 20, 40)).andExpect(status().isOk());
     }
 
     // ======================= Reporte y Excel =======================
@@ -398,6 +451,15 @@ class AsistenciaApiIntegrationTest {
     private String nota(Estudiante estudiante, Integer primero, Integer segundo, Integer practico, Integer examen) {
         return "{\"estudianteId\":%d,\"materiaId\":%d,\"primerParcial\":%s,\"segundoParcial\":%s,\"trabajoPractico\":%s,\"examenFinal\":%s}"
                 .formatted(estudiante.getId(), programacion.getId(), primero, segundo, practico, examen);
+    }
+
+    private static String rutaPuntajes(Materia materia) {
+        return "/api/materias/%d/puntajes".formatted(materia.getId());
+    }
+
+    private static String puntajes(int primero, int segundo, int practico, int examen) {
+        return "{\"primerParcial\":%d,\"segundoParcial\":%d,\"trabajoPractico\":%d,\"examenFinal\":%d}"
+                .formatted(primero, segundo, practico, examen);
     }
 
     private ResultActions enviar(MockHttpServletRequestBuilder peticion, String token, String cuerpo) throws Exception {

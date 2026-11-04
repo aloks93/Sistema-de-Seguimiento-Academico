@@ -7,6 +7,7 @@ import py.edu.upe.hernandarias.entity.Materia;
 
 /**
  * @param nota         puntaje total de 0 a 100
+ * @param puntajes     cuánto vale cada componente en la materia
  * @param desglosada   {@code true} si se cargó por componentes (parciales, trabajo práctico, final)
  * @param calificacion escala de 1 a 5; {@code null} mientras falta el examen final de una nota desglosada
  */
@@ -26,6 +27,7 @@ public record CalificacionResponse(
         Integer segundoParcial,
         Integer trabajoPractico,
         Integer examenFinal,
+        PuntajesResponse puntajes,
         boolean desglosada,
         Integer calificacion,
         Instant fechaRegistro,
@@ -50,6 +52,7 @@ public record CalificacionResponse(
                 calificacion.getSegundoParcial(),
                 calificacion.getTrabajoPractico(),
                 calificacion.getExamenFinal(),
+                PuntajesResponse.from(materia),
                 calificacion.esDesglosada(),
                 calificacion.calificacionFinal(),
                 calificacion.getFechaRegistro(),

@@ -29,4 +29,12 @@ public interface CalificacionRepository extends JpaRepository<Calificacion, Long
 
     @Query("select c.estudiante.id from Calificacion c where c.materia.id = :materiaId")
     Set<Long> findEstudianteIdsByMateriaId(@Param("materiaId") Long materiaId);
+    /** Notas de la materia con algún componente mayor que los puntajes indicados. */
+    @Query("""
+            select count(c) from Calificacion c where c.materia.id = :materiaId and (
+                c.primerParcial > :primerParcial or c.segundoParcial > :segundoParcial
+                or c.trabajoPractico > :trabajoPractico or c.examenFinal > :examenFinal)""")
+    long contarQueSuperan(@Param("materiaId") Long materiaId, @Param("primerParcial") int primerParcial,
+                          @Param("segundoParcial") int segundoParcial, @Param("trabajoPractico") int trabajoPractico,
+                          @Param("examenFinal") int examenFinal);
 }

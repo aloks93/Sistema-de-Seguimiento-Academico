@@ -803,3 +803,147 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
     .segmento[aria-pressed="true"] { outline: 2px solid CanvasText; }
     .grafico-barras__barra, .barra-apilada__segmento, .medidor__relleno { forced-color-adjust: none; }
 }
+
+/* =====================================================================
+   MOVIMIENTO
+   La entrada de cada pantalla es escalonada: app.js marca el contenido
+   con .recien (por ~1,5 s) y numera los bloques con --i. Todo respeta
+   prefers-reduced-motion (ver más arriba).
+   ===================================================================== */
+:root { --resorte: cubic-bezier(.34, 1.56, .64, 1); --suave: cubic-bezier(.2, .7, .3, 1); }
+
+/* Bloques, tarjetas y filas aparecen uno detrás de otro */
+.recien .pila > *, .recien .tarjetas > * {
+    animation: emerger 480ms var(--suave) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+}
+.recien .tabla tbody tr {
+    animation: fila-entra 380ms var(--suave) both;
+    animation-delay: calc(120ms + var(--i, 0) * 22ms);
+}
+@keyframes emerger { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes fila-entra { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+
+/* Barras que se llenan desde cero */
+.recien .medidor__relleno, .recien .avance__relleno, .recien .grafico-barras__barra {
+    animation: llenar 900ms var(--suave) 200ms both;
+}
+.recien .barra-apilada__segmento { animation: crecer 700ms var(--suave) 200ms both; transform-origin: left; }
+@keyframes llenar { from { width: 0; } }
+@keyframes crecer { from { transform: scaleX(0); opacity: 0; } }
+
+/* Tarjetas de datos: se elevan y el ícono reacciona */
+.dato { transition: border-color var(--transicion), transform 260ms var(--resorte), box-shadow 260ms var(--suave); }
+.dato:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sombra), 0 14px 32px color-mix(in srgb, var(--primario) 18%, transparent);
+}
+.dato__icono { transition: transform 360ms var(--resorte), background-color var(--transicion); }
+.dato:hover .dato__icono { transform: rotate(-8deg) scale(1.12); background: color-mix(in srgb, var(--primario) 26%, transparent); }
+
+.panel { transition: border-color var(--transicion), box-shadow 300ms var(--suave); }
+.panel:hover { border-color: var(--borde-fuerte); }
+
+/* Botones: onda al hacer clic y un pequeño impulso */
+.boton { overflow: hidden; isolation: isolate; }
+.boton:active:not(:disabled) { transform: scale(.97); }
+.boton--primario:hover:not(:disabled) {
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--primario) 40%, transparent), inset 0 1px 0 rgb(255 255 255 / .12);
+    transform: translateY(-1px);
+}
+.onda {
+    position: absolute; z-index: -1; pointer-events: none;
+    width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+    background: currentColor; opacity: .28;
+    animation: onda 560ms var(--suave) forwards;
+}
+@keyframes onda { to { transform: scale(28); opacity: 0; } }
+.boton-icono { transition: background-color var(--transicion), color var(--transicion), transform 220ms var(--resorte); }
+.boton-icono:hover { transform: scale(1.1); }
+.boton-icono:active { transform: scale(.92); }
+
+/* Menú lateral: el ícono se desplaza y el indicador del activo crece */
+.nav__item .icono { transition: transform 260ms var(--resorte), color var(--transicion); }
+.nav__item:hover .icono { transform: translateX(3px) scale(1.08); }
+.nav__item.activo::before { animation: indicador 360ms var(--resorte); }
+@keyframes indicador { from { transform: scaleY(0); } }
+
+/* Chips y avatares */
+.recien .chip { animation: brotar 340ms var(--resorte) 250ms both; }
+@keyframes brotar { from { opacity: 0; transform: scale(.7); } }
+.avatar { transition: transform 260ms var(--resorte); }
+.tabla tbody tr:hover .avatar { transform: scale(1.1) rotate(-4deg); }
+.tabla tbody tr { transition: background-color var(--transicion), box-shadow var(--transicion); }
+.tabla tbody tr:hover { box-shadow: inset 3px 0 0 var(--primario); }
+
+/* Planilla: la fila guardada destella, el total late al cambiar */
+.planilla tr.fila--guardada { animation: destello 1100ms var(--suave); }
+@keyframes destello {
+    0% { background: color-mix(in srgb, var(--exito) 26%, transparent); }
+    100% { background: transparent; }
+}
+.planilla__total span { display: inline-block; }
+.latido { animation: latido 380ms var(--resorte); }
+@keyframes latido { 40% { transform: scale(1.22); color: var(--primario); } }
+.planilla__nota { transition: border-color var(--transicion), box-shadow var(--transicion), transform 200ms var(--resorte); }
+.planilla__nota:focus { transform: scale(1.06); }
+
+/* Distribución de puntajes (parciales, TP y final) */
+.distribucion { display: flex; height: 10px; gap: 2px; border-radius: 999px; overflow: hidden; min-width: 120px; }
+.distribucion__parte { transition: flex-grow 420ms var(--suave); }
+.distribucion__parte--p1 { background: var(--primario); }
+.distribucion__parte--p2 { background: color-mix(in srgb, var(--primario) 55%, #a855f7); }
+.distribucion__parte--tp { background: var(--aviso); }
+.distribucion__parte--ef { background: var(--exito); }
+.puntajes__vista { display: flex; flex-direction: column; gap: 10px; grid-column: 1 / -1; }
+.puntajes__vista .distribucion { height: 16px; }
+.puntajes__leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: .84rem; color: var(--texto-sutil); }
+.puntajes__clave { display: inline-flex; align-items: center; gap: 6px; }
+.puntajes__clave i { width: 10px; height: 10px; border-radius: 3px; }
+.puntajes__suma { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; transition: color var(--transicion); }
+.puntajes__suma--mal { color: var(--peligro); }
+.puntajes__suma--bien { color: var(--exito); }
+.chip--boton {
+    font-family: inherit; cursor: pointer; padding: 4px 12px; gap: 10px;
+    border-color: var(--primario-borde); color: var(--texto);
+    transition: border-color var(--transicion), background-color var(--transicion), transform 220ms var(--resorte);
+}
+.chip--boton:hover { background: var(--primario-suave); transform: translateY(-1px); }
+.chip--boton:focus-visible { outline: none; box-shadow: var(--anillo); }
+.chip--boton .distribucion { min-width: 70px; height: 8px; }
+.chip--boton .icono { width: 14px; height: 14px; color: var(--texto-sutil); }
+
+/* Estado vacío: el ícono flota */
+.vacio__icono { animation: flotar 3.2s ease-in-out infinite; }
+@keyframes flotar { 50% { transform: translateY(-6px); } }
+
+/* Login: fondo vivo, logo que respira y puntos que entran en cascada */
+.login__marca { background-size: 140% 140%, 140% 140%, auto; animation: deriva 18s ease-in-out infinite alternate; }
+@keyframes deriva {
+    from { background-position: 0% 100%, 100% 0%, 0 0; }
+    to { background-position: 30% 70%, 60% 30%, 0 0; }
+}
+.login__marca::before {
+    content: ""; position: absolute; width: 420px; height: 420px; right: -120px; top: 30%;
+    border-radius: 50%; pointer-events: none; filter: blur(60px);
+    background: color-mix(in srgb, var(--primario) 35%, transparent);
+    animation: orbitar 14s ease-in-out infinite alternate;
+}
+@keyframes orbitar { to { transform: translate(-180px, -120px) scale(1.25); } }
+.logo__icono { animation: respirar 4s ease-in-out infinite; }
+@keyframes respirar {
+    50% { box-shadow: 0 6px 28px color-mix(in srgb, var(--primario) 70%, transparent); transform: translateY(-1px); }
+}
+.login.entrando .login__titular { animation: emerger 600ms var(--suave) both; }
+.login.entrando .login__puntos li { animation: emerger 520ms var(--suave) both; }
+.login.entrando .login__puntos li:nth-child(1) { animation-delay: 150ms; }
+.login.entrando .login__puntos li:nth-child(2) { animation-delay: 250ms; }
+.login.entrando .login__puntos li:nth-child(3) { animation-delay: 350ms; }
+.login.entrando .login__puntos li:nth-child(4) { animation-delay: 450ms; }
+.login.entrando .login__formulario { animation: emerger 560ms var(--suave) 120ms both; }
+.sacudir { animation: sacudir 420ms ease-in-out; }
+@keyframes sacudir { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .vacio__icono, .logo__icono, .login__marca, .login__marca::before { animation: none !important; }
+}

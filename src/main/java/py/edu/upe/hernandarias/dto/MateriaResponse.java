@@ -9,6 +9,7 @@ import py.edu.upe.hernandarias.entity.Materia;
  *
  * @param asistenciaMinimaPropia mínimo propio de la materia ({@code null} = usa el de la carrera)
  * @param asistenciaMinima       mínimo que rige (el propio o el de la carrera)
+ * @param puntajes               cuánto vale cada componente de la nota (suman 100)
  * @param inscriptos             estudiantes que cursan la materia
  */
 public record MateriaResponse(
@@ -26,6 +27,7 @@ public record MateriaResponse(
         Integer asistenciaMinimaPropia,
         int asistenciaMinima,
         Integer clasesPrevistas,
+        PuntajesResponse puntajes,
         long inscriptos) {
 
     public static MateriaResponse from(Materia materia, long inscriptos) {
@@ -46,6 +48,7 @@ public record MateriaResponse(
                 materia.getAsistenciaMinima(),
                 materia.asistenciaMinimaEfectiva(),
                 materia.getClasesPrevistas(),
+                PuntajesResponse.from(materia),
                 inscriptos);
     }
 }

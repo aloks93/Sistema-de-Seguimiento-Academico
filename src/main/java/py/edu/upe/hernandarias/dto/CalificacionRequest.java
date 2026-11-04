@@ -13,10 +13,10 @@ public record CalificacionRequest(
         @NotNull Long estudianteId,
         @NotNull Long materiaId,
         @Min(Calificacion.NOTA_MINIMA) @Max(Calificacion.NOTA_MAXIMA) Integer nota,
-        @Min(0) @Max(Calificacion.MAXIMO_PARCIAL) Integer primerParcial,
-        @Min(0) @Max(Calificacion.MAXIMO_PARCIAL) Integer segundoParcial,
-        @Min(0) @Max(Calificacion.MAXIMO_TRABAJO_PRACTICO) Integer trabajoPractico,
-        @Min(0) @Max(Calificacion.MAXIMO_EXAMEN_FINAL) Integer examenFinal) {
+        @Min(0) @Max(Calificacion.NOTA_MAXIMA) Integer primerParcial,
+        @Min(0) @Max(Calificacion.NOTA_MAXIMA) Integer segundoParcial,
+        @Min(0) @Max(Calificacion.NOTA_MAXIMA) Integer trabajoPractico,
+        @Min(0) @Max(Calificacion.NOTA_MAXIMA) Integer examenFinal) {
 
     public ComponentesNota componentes() {
         return new ComponentesNota(nota, primerParcial, segundoParcial, trabajoPractico, examenFinal);

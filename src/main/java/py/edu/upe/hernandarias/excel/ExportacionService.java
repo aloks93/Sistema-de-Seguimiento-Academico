@@ -38,7 +38,7 @@ import py.edu.upe.hernandarias.service.InscripcionService;
 import py.edu.upe.hernandarias.service.MateriaService;
 
 /**
- * Exportaciones a Excel. Usa los mismos servicios que la API, asÃ­ que cada usuario exporta
+ * Exportaciones a Excel. Usa los mismos servicios que la API, así que cada usuario exporta
  * exactamente lo que puede ver (un docente, solo sus carreras y materias).
  */
 @Service
@@ -71,7 +71,7 @@ public class ExportacionService {
                         e.activo() ? "Activo" : "Inactivo"))
                 .toList();
         return new ArchivoExcel(nombreArchivo("estudiantes"), tabla("Estudiantes", "Estudiantes",
-                List.of("Nombre completo", "MatrÃ­cula", "Carrera", "Usuario", "Estado"), filas));
+                List.of("Nombre completo", "Matrícula", "Carrera", "Usuario", "Estado"), filas));
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +81,7 @@ public class ExportacionService {
                         m.docenteNombre() == null ? "Sin asignar" : m.docenteNombre()))
                 .toList();
         return new ArchivoExcel(nombreArchivo("materias"), tabla("Materias", "Materias",
-                List.of("CÃ³digo", "Materia", "Carrera", "Semestre", "CrÃ©ditos", "Docente"), filas));
+                List.of("Código", "Materia", "Carrera", "Semestre", "Créditos", "Docente"), filas));
     }
 
     @Transactional(readOnly = true)
@@ -101,7 +101,7 @@ public class ExportacionService {
                 .map(c -> List.<Object>of(c.codigo(), c.nombre(), c.semestres(), c.materias(), c.estudiantes()))
                 .toList();
         return new ArchivoExcel(nombreArchivo("carreras"), tabla("Carreras", "Carreras",
-                List.of("CÃ³digo", "Carrera", "Semestres", "Materias", "Estudiantes"), filas));
+                List.of("Código", "Carrera", "Semestres", "Materias", "Estudiantes"), filas));
     }
 
     /** Planilla de una materia: todos sus inscriptos, con la nota desglosada si la tienen. */
@@ -126,11 +126,14 @@ public class ExportacionService {
         }
         agregarPromedio(filas, notas.values().stream().map(CalificacionResponse::nota).toList(), 9, 2);
 
-        String titulo = "Planilla de notas Â· %s %s Â· %s Â· %dÂ° semestre".formatted(
+        String titulo = "Planilla de notas · %s %s · %s · %d° semestre".formatted(
                 materia.codigo(), materia.nombre(), materia.carreraNombre(), materia.semestre());
         return new ArchivoExcel(nombreArchivo("notas-" + materia.codigo()), tabla("Notas", titulo,
-                List.of("Estudiante", "MatrÃ­cula", "Total (100)", "CalificaciÃ³n (1-5)", "1er parcial (15)",
-                        "2do parcial (15)", "Trabajo prÃ¡ctico (20)", "Examen final (50)", "Actualizada"), filas));
+                List.of("Estudiante", "Matrícula", "Total (100)", "Calificación (1-5)",
+                        "1er parcial (%d)".formatted(materia.puntajes().primerParcial()),
+                        "2do parcial (%d)".formatted(materia.puntajes().segundoParcial()),
+                        "Trabajo práctico (%d)".formatted(materia.puntajes().trabajoPractico()),
+                        "Examen final (%d)".formatted(materia.puntajes().examenFinal()), "Actualizada"), filas));
     }
 
     /** Todas las notas visibles para el usuario (todas para un ADMIN; las de sus materias para un docente). */
@@ -141,11 +144,11 @@ public class ExportacionService {
                         n.semestre(), n.nota(), valor(n.calificacion()), fecha(n.fechaActualizacion())))
                 .toList();
         return new ArchivoExcel(nombreArchivo("notas"), tabla("Notas", "Notas cargadas",
-                List.of("Estudiante", "MatrÃ­cula", "CÃ³digo", "Materia", "Semestre", "Nota", "CalificaciÃ³n (1-5)",
+                List.of("Estudiante", "Matrícula", "Código", "Materia", "Semestre", "Nota", "Calificación (1-5)",
                         "Actualizada"), filas));
     }
 
-    /** BoletÃ­n del estudiante autenticado. */
+    /** Boletín del estudiante autenticado. */
     @Transactional(readOnly = true)
     public ArchivoExcel misNotas(String username) {
         List<CalificacionResponse> notas = calificacionService.listarPorUsuario(username);
@@ -157,30 +160,30 @@ public class ExportacionService {
         agregarPromedio(filas, notas.stream().map(CalificacionResponse::nota).toList(), 7, 5);
 
         String titulo = notas.isEmpty() ? "Mis notas" : "Notas de " + notas.get(0).nombreEstudiante()
-                + " Â· MatrÃ­cula " + notas.get(0).matricula();
+                + " · Matrícula " + notas.get(0).matricula();
         return new ArchivoExcel(nombreArchivo("mis-notas"), tabla("Notas", titulo,
-                List.of("Materia", "CÃ³digo", "Docente", "Semestre", "CrÃ©ditos", "Nota", "CalificaciÃ³n (1-5)"), filas));
+                List.of("Materia", "Código", "Docente", "Semestre", "Créditos", "Nota", "Calificación (1-5)"), filas));
     }
 
     // ======================= Asistencia =======================
 
-    /** Planilla de asistencia: hoja "Resumen" (porcentaje y condiciÃ³n) y hoja "Clases" (P/T/A/J por fecha). */
+    /** Planilla de asistencia: hoja "Resumen" (porcentaje y condición) y hoja "Clases" (P/T/A/J por fecha). */
     @Transactional(readOnly = true)
     public ArchivoExcel asistencia(Long materiaId, String username) {
         ResumenAsistenciaResponse resumen = asistenciaService.resumen(materiaId, username);
         AsistenciaService.Matriz matriz = asistenciaService.matriz(materiaId, username);
         String materia = resumen.codigoMateria() + " " + resumen.nombreMateria();
-        String reglas = "MÃ­nimo %d %% Â· %d clases dictadas%s Â· 3 tardanzas = 1 ausencia Â· la justificada cuenta como ausencia"
+        String reglas = "Mínimo %d %% · %d clases dictadas%s · 3 tardanzas = 1 ausencia · la justificada cuenta como ausencia"
                 .formatted(resumen.asistenciaMinima(), resumen.clasesDictadas(),
                         resumen.clasesPrevistas() == null ? "" : " de " + resumen.clasesPrevistas() + " previstas");
 
         try (XSSFWorkbook libro = new XSSFWorkbook()) {
             ExcelUtil.Estilos estilos = ExcelUtil.estilos(libro);
 
-            List<String> columnas = List.of("Estudiante", "MatrÃ­cula", "Presentes", "Tardanzas", "Ausentes",
-                    "Justificadas", "Ausencias computadas", "Asistencia (%)", "Faltas restantes", "CondiciÃ³n");
+            List<String> columnas = List.of("Estudiante", "Matrícula", "Presentes", "Tardanzas", "Ausentes",
+                    "Justificadas", "Ausencias computadas", "Asistencia (%)", "Faltas restantes", "Condición");
             Sheet hoja = libro.createSheet("Resumen");
-            ExcelUtil.encabezado(hoja, estilos, "Asistencia Â· " + materia, reglas, columnas);
+            ExcelUtil.encabezado(hoja, estilos, "Asistencia · " + materia, reglas, columnas);
             int indice = ExcelUtil.PRIMERA_FILA_DATOS;
             for (FilaAsistenciaResponse f : resumen.estudiantes()) {
                 ExcelUtil.fila(hoja, indice++, List.of(f.nombreEstudiante(), f.matricula(), f.presentes(), f.tardes(),
@@ -190,11 +193,11 @@ public class ExportacionService {
             filtro(hoja, indice, columnas.size());
             ExcelUtil.ajustarColumnas(hoja, columnas.size());
 
-            List<String> columnasClases = new ArrayList<>(List.of("Estudiante", "MatrÃ­cula"));
+            List<String> columnasClases = new ArrayList<>(List.of("Estudiante", "Matrícula"));
             matriz.fechas().forEach(dia -> columnasClases.add(ExcelUtil.fecha(dia).substring(0, 5)));
             Sheet clases = libro.createSheet("Clases");
-            ExcelUtil.encabezado(clases, estilos, "Clases Â· " + materia,
-                    "P = presente Â· T = tarde Â· A = ausente Â· J = justificada", columnasClases);
+            ExcelUtil.encabezado(clases, estilos, "Clases · " + materia,
+                    "P = presente · T = tarde · A = ausente · J = justificada", columnasClases);
             indice = ExcelUtil.PRIMERA_FILA_DATOS;
             for (FilaAsistenciaResponse f : resumen.estudiantes()) {
                 List<Object> fila = new ArrayList<>(List.of(f.nombreEstudiante(), f.matricula()));
@@ -213,7 +216,7 @@ public class ExportacionService {
         }
     }
 
-    /** Lista de habilitados para el examen final: primero los habilitados, despuÃ©s los que no. */
+    /** Lista de habilitados para el examen final: primero los habilitados, después los que no. */
     @Transactional(readOnly = true)
     public ArchivoExcel habilitados(Long materiaId, String username) {
         ResumenAsistenciaResponse resumen = asistenciaService.resumen(materiaId, username);
@@ -233,10 +236,10 @@ public class ExportacionService {
             filas.add(List.of(numero++, f.nombreEstudiante(), f.matricula(),
                     f.porcentaje() == null ? "" : f.porcentaje() + " %", condicion));
         }
-        String titulo = "Habilitados para el examen final Â· %s %s Â· mÃ­nimo %d %% de asistencia".formatted(
+        String titulo = "Habilitados para el examen final · %s %s · mínimo %d %% de asistencia".formatted(
                 resumen.codigoMateria(), resumen.nombreMateria(), resumen.asistenciaMinima());
         return new ArchivoExcel(nombreArchivo("habilitados-" + resumen.codigoMateria()), tabla("Habilitados", titulo,
-                List.of("NÂ°", "Estudiante", "MatrÃ­cula", "Asistencia", "CondiciÃ³n"), filas));
+                List.of("N°", "Estudiante", "Matrícula", "Asistencia", "Condición"), filas));
     }
 
     private MateriaResponse materia(Long materiaId, String username) {
@@ -252,7 +255,7 @@ public class ExportacionService {
         }
     }
 
-    /** NÃºmero o celda vacÃ­a. */
+    /** Número o celda vacía. */
     private static Object valor(Object numero) {
         return numero == null ? "" : numero;
     }

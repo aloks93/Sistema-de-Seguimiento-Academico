@@ -39,10 +39,6 @@ public class Calificacion {
     public static final int NOTA_MINIMA = 0;
     public static final int NOTA_MAXIMA = 100;
 
-    // Puntajes del reglamento de la UPE: dos parciales de 15, trabajo práctico de 20 y examen final de 50
-    public static final int MAXIMO_PARCIAL = 15;
-    public static final int MAXIMO_TRABAJO_PRACTICO = 20;
-    public static final int MAXIMO_EXAMEN_FINAL = 50;
     /** Puntaje mínimo para aprobar (calificación 2). */
     public static final int PUNTAJE_APROBACION = 60;
 
@@ -64,24 +60,24 @@ public class Calificacion {
     @Column(nullable = false)
     private Integer nota;
 
-    // Componentes (todos null = "nota única", cargada sin desglose)
+    // Componentes (todos null = "nota única", cargada sin desglose). Cuánto vale cada uno lo define la materia.
     @Min(0)
-    @Max(MAXIMO_PARCIAL)
+    @Max(NOTA_MAXIMA)
     @Column(name = "primer_parcial")
     private Integer primerParcial;
 
     @Min(0)
-    @Max(MAXIMO_PARCIAL)
+    @Max(NOTA_MAXIMA)
     @Column(name = "segundo_parcial")
     private Integer segundoParcial;
 
     @Min(0)
-    @Max(MAXIMO_TRABAJO_PRACTICO)
+    @Max(NOTA_MAXIMA)
     @Column(name = "trabajo_practico")
     private Integer trabajoPractico;
 
     @Min(0)
-    @Max(MAXIMO_EXAMEN_FINAL)
+    @Max(NOTA_MAXIMA)
     @Column(name = "examen_final")
     private Integer examenFinal;
 

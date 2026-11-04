@@ -67,6 +67,36 @@ public class Materia {
     @Column(name = "clases_previstas")
     private Integer clasesPrevistas;
 
+    // Cuánto vale cada componente de la nota. Lo define el docente a cargo (o un ADMIN) y suman 100;
+    // por defecto, el reglamento de la UPE: dos parciales de 15, trabajo práctico de 20 y examen final de 50.
+    public static final int PUNTAJE_PARCIAL_POR_DEFECTO = 15;
+    public static final int PUNTAJE_TRABAJO_PRACTICO_POR_DEFECTO = 20;
+    public static final int PUNTAJE_EXAMEN_FINAL_POR_DEFECTO = 50;
+
+    @Min(0)
+    @Max(100)
+    @Builder.Default
+    @Column(name = "puntaje_primer_parcial", nullable = false)
+    private Integer puntajePrimerParcial = PUNTAJE_PARCIAL_POR_DEFECTO;
+
+    @Min(0)
+    @Max(100)
+    @Builder.Default
+    @Column(name = "puntaje_segundo_parcial", nullable = false)
+    private Integer puntajeSegundoParcial = PUNTAJE_PARCIAL_POR_DEFECTO;
+
+    @Min(0)
+    @Max(100)
+    @Builder.Default
+    @Column(name = "puntaje_trabajo_practico", nullable = false)
+    private Integer puntajeTrabajoPractico = PUNTAJE_TRABAJO_PRACTICO_POR_DEFECTO;
+
+    @Min(1)
+    @Max(100)
+    @Builder.Default
+    @Column(name = "puntaje_examen_final", nullable = false)
+    private Integer puntajeExamenFinal = PUNTAJE_EXAMEN_FINAL_POR_DEFECTO;
+
     /** El mínimo que rige para esta materia. */
     public int asistenciaMinimaEfectiva() {
         return asistenciaMinima != null ? asistenciaMinima : carrera.getAsistenciaMinima();
