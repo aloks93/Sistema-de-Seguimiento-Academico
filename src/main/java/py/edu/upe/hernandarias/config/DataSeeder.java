@@ -77,13 +77,12 @@ public class DataSeeder implements CommandLineRunner {
                 .nombreCompleto("Docente de Prueba")
                 .build());
 
-        Estudiante prueba = estudiante("estudiante", "2026-0001", "Estudiante de Prueba", informatica);
-        Estudiante lucia = estudiante("lucia", "2026-0002", "Lucía Gómez", informatica);
-        Estudiante marcos = estudiante("marcos", "2026-0003", "Marcos Rojas", informatica);
-        Estudiante ana = estudiante("ana", "2026-0004", "Ana Benítez", informatica);
-        Estudiante diego = estudiante("diego", "2026-0005", "Diego Fernández", informatica);
-        Estudiante sofia = estudiante("sofia", "2026-0006", "Sofía Martínez", informatica);
-        List<Estudiante> curso = List.of(prueba, lucia, marcos, ana, diego, sofia);
+        Estudiante lucia = estudiante("lucia", "2026-0001", "Lucía Gómez", informatica);
+        Estudiante marcos = estudiante("marcos", "2026-0002", "Marcos Rojas", informatica);
+        Estudiante ana = estudiante("ana", "2026-0003", "Ana Benítez", informatica);
+        Estudiante diego = estudiante("diego", "2026-0004", "Diego Fernández", informatica);
+        Estudiante sofia = estudiante("sofia", "2026-0005", "Sofía Martínez", informatica);
+        List<Estudiante> curso = List.of(lucia, marcos, ana, diego, sofia);
 
         Materia programacion = materiaRepository.save(Materia.builder().codigo("INF-101").nombre("Programación I")
                 .creditos(4).semestre(1).carrera(informatica).docente(docente).clasesPrevistas(30).build());
@@ -105,28 +104,26 @@ public class DataSeeder implements CommandLineRunner {
                 "Presentación de la materia", "Algoritmos y diagramas de flujo", "Variables y tipos de datos",
                 "Operadores", "Estructuras condicionales", "Práctica: condicionales", "Ciclos while y for",
                 "Práctica: ciclos", "Funciones", "Arreglos", "Repaso para el parcial", "Primer parcial"),
-                Map.of(prueba, "PPPTPPAPPTPP",     // 1 ausencia + 2 tardanzas: habilitado
-                        lucia, "PPPPPPPPPPPP",      // asistencia perfecta
+                Map.of(lucia, "PPPPPPPPPPPP",      // asistencia perfecta
                         marcos, "PAAPAPAAPAPA",     // 7 ausencias: en riesgo (le quedan 2)
                         ana, "AAPAAAAAPAAA",        // 10 ausencias: ya no llega al mínimo
                         diego, "PTPTPJPTPPPP",      // 3 tardanzas (= 1 ausencia) + 1 justificada
                         sofia, "PAJPAJPAJPAP"));    // 4 ausencias + 3 justificadas: en riesgo
         registrarClases(discreta, Set.of(DayOfWeek.TUESDAY), List.of(
                 "Lógica proposicional", "Conjuntos", "Relaciones", "Funciones", "Inducción", "Combinatoria"),
-                Map.of(prueba, "PPPPPP", lucia, "PPPPTP", marcos, "PPAPPP",
+                Map.of(lucia, "PPPPTP", marcos, "PPAPPP",
                         ana, "AAPAPA", diego, "PPPPPP", sofia, "PTPPPP"));
         exoneracionRepository.save(Exoneracion.builder().estudiante(ana).materia(discreta)
                 .motivo("Reposo médico con certificado (ejemplo)").otorgadaPor("admin").build());
 
         // Notas desglosadas de Programación I: parciales y trabajo práctico; Lucía ya rindió el final
-        nota(prueba, programacion, 12, 13, 18, null);
         nota(lucia, programacion, 14, 15, 19, 46);
         nota(marcos, programacion, 9, 10, 14, null);
         nota(ana, programacion, 7, null, 10, null);
         nota(diego, programacion, 11, 12, 16, null);
         nota(sofia, programacion, 13, 11, 17, null);
 
-        log.info("Datos de ejemplo cargados (usuarios: admin, docente, estudiante, lucia, marcos, ana, diego, sofia)");
+        log.info("Datos de ejemplo cargados (usuarios: admin, docente, lucia, marcos, ana, diego, sofia)");
     }
 
     private void registrarClases(Materia materia, Set<DayOfWeek> dias, List<String> temas,

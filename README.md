@@ -115,8 +115,7 @@ El esquema de la base lo crean y actualizan las migraciones de Flyway al arranca
 |---|---|---|
 | `admin` | `admin123` | ADMIN |
 | `docente` | `docente123` | DOCENTE (a cargo de las materias de Informática) |
-| `estudiante` | `estudiante123` | ESTUDIANTE (matrícula `2026-0001`, Informática) |
-| `lucia`, `marcos`, `ana`, `diego`, `sofia` | `estudiante123` | ESTUDIANTES de Informática con asistencia de ejemplo (habilitada, en riesgo, no habilitada, exonerada) |
+| `lucia`, `marcos`, `ana`, `diego`, `sofia` | `estudiante123` | ESTUDIANTES de Informática (matrículas `2026-0001` a `2026-0005`) con notas y asistencia de ejemplo: habilitada, en riesgo, no habilitada, exonerada |
 
 Carreras de ejemplo: `INF` Ingeniería en Informática y `ADM` Administración de Empresas.
 Materias de ejemplo: `INF-101`, `INF-102`, `INF-201` (ids 1, 2, 3) y `ADM-101` sin docente asignado.

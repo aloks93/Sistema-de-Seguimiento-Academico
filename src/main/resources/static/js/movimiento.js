@@ -147,7 +147,7 @@ export function titularPorPalabras(nodo) {
     }));
 }
 
-const SELECTOR_INCLINABLE = '.dato, .tarjetas-materia > *, .login__formulario';
+const SELECTOR_INCLINABLE = '.dato, .tarjetas-materia > *';
 
 /**
  * Scroll con inercia para la rueda del mouse: en lugar de saltar, el contenido se desliza hasta su destino.
@@ -235,7 +235,7 @@ export function iniciarMovimiento() {
         const caja = objetivo.getBoundingClientRect();
         const x = (evento.clientX - caja.left) / caja.width;
         const y = (evento.clientY - caja.top) / caja.height;
-        const fuerza = objetivo.classList.contains('login__formulario') ? 3 : 7;
+        const fuerza = 7;
         objetivo.classList.add('inclinado');
         objetivo.style.setProperty('--rx', `${((0.5 - y) * fuerza).toFixed(2)}deg`);
         objetivo.style.setProperty('--ry', `${((x - 0.5) * fuerza).toFixed(2)}deg`);

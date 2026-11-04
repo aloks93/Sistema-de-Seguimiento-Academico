@@ -166,10 +166,13 @@ Usuarios de ejemplo (se crean solos la primera vez):
     Usuario      Contraseña      Rol
     admin        admin123        ADMIN (super usuario)
     docente      docente123      DOCENTE (a cargo de las materias INF)
-    estudiante   estudiante123   ESTUDIANTE (matrícula 2026-0001, Informática)
     lucia, marcos, ana, diego, sofia   estudiante123   ESTUDIANTES de
-                 Informática con asistencia de ejemplo: hay uno habilitado,
-                 uno en riesgo, uno no habilitado y uno exonerado.
+                 Informática (matrículas 2026-0001 a 2026-0005) con notas y
+                 asistencia de ejemplo: hay habilitados, en riesgo, uno no
+                 habilitado y una exoneración.
+    Si la base se creó con una versión anterior del sistema y estos
+    usuarios no existen, ver "No puedo entrar con los usuarios de ejemplo"
+    en la sección 10.
 
 Datos de ejemplo:
     Carreras: INF Ingeniería en Informática, ADM Administración de Empresas
@@ -1014,6 +1017,14 @@ Comandos útiles (terminal en la carpeta del proyecto):
   El Excel muestra letras raras (ej.: "MatrÃ­cula")
       Era un error de codificación del archivo ExportacionService.java en
       una versión anterior; ya está corregido. Actualizar con git pull.
+
+  No puedo entrar con los usuarios de ejemplo (lucia, marcos...)
+      Los datos de ejemplo se cargan SOLO cuando la base está vacía. Si la
+      base se creó con una versión anterior, esos usuarios no existen.
+      Solución: comandos\detener-backend.cmd, después
+      comandos\borrar-base-de-datos.cmd (escribir BORRAR) y volver a
+      iniciar: se crea de nuevo con los usuarios de ejemplo actuales.
+      (Se pierde todo lo cargado en esa base.)
 
   Quiero empezar con la base vacía
       comandos\detener-backend.cmd y después

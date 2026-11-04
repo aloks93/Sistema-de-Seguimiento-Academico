@@ -22,8 +22,8 @@ try {
     $docente = Iniciar-Sesion 'docente' 'docente123'
 
     Write-Host ""
-    Write-Host "2. El docente registra una nota de 85 en INF-101 para el estudiante 2026-0001" -ForegroundColor Cyan
-    $nota = @{ estudianteId = 1; materiaId = 1; nota = 85 } | ConvertTo-Json
+    Write-Host "2. El docente registra una nota de 85 en INF-201 para Lucía (matrícula 2026-0001)" -ForegroundColor Cyan
+    $nota = @{ estudianteId = 1; materiaId = 3; nota = 85 } | ConvertTo-Json
     try {
         $creada = Invoke-RestMethod -Method Post -Uri "$api/api/calificaciones" -Headers $docente -ContentType 'application/json' -Body $nota
         Write-Host "  Nota registrada con id $($creada.id)" -ForegroundColor Green
@@ -36,8 +36,8 @@ try {
     }
 
     Write-Host ""
-    Write-Host "3. Login del estudiante y consulta de sus notas" -ForegroundColor Cyan
-    $estudiante = Iniciar-Sesion 'estudiante' 'estudiante123'
+    Write-Host "3. Login de la estudiante (lucia) y consulta de sus notas" -ForegroundColor Cyan
+    $estudiante = Iniciar-Sesion 'lucia' 'estudiante123'
     # Invoke-RestMethod de PowerShell 5.1 no decodifica bien UTF-8 (tildes), por eso se lee a mano
     $respuesta = Invoke-WebRequest -UseBasicParsing -Uri "$api/api/estudiantes/me/calificaciones" -Headers $estudiante
     $json = [System.Text.Encoding]::UTF8.GetString($respuesta.RawContentStream.ToArray())

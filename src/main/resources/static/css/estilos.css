@@ -919,7 +919,7 @@ tr.oculto { transform: translate3d(0, 14px, 0); }
     box-shadow: var(--sombra), 0 24px 50px color-mix(in srgb, var(--primario) 22%, transparent);
     border-color: var(--primario-borde);
 }
-.dato::after, .tarjetas-materia > *::after, .login__formulario::after {
+.dato::after, .tarjetas-materia > *::after {
     content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
     background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%),
                 color-mix(in srgb, var(--primario) 20%, transparent), transparent 45%);
@@ -1025,8 +1025,6 @@ tr.oculto { transform: translate3d(0, 14px, 0); }
 .login.entrando .login__puntos li:nth-child(3) { animation-delay: .9s; }
 .login.entrando .login__formulario { animation: enfocar 1s var(--curva-salida) .25s both; }
 .login.entrando .logo { animation: enfocar .9s var(--curva-salida) both; }
-.login__formulario { position: relative; border-radius: var(--radio); transition: transform .6s var(--curva-salida); }
-.login__formulario.inclinado { transform: perspective(1200px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform .45s var(--curva-salida); }
 .sacudir { animation: sacudir .5s var(--curva-apple) !important; }
 @keyframes sacudir { 15%, 55% { transform: translateX(-9px); } 35%, 75% { transform: translateX(9px); } }
 
