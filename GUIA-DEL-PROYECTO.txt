@@ -189,12 +189,21 @@ CÓMO USAR LA PÁGINA WEB
   - La dirección cambia con cada pantalla (ej.: #/notas?materia=3), así que
     se puede recargar, usar "atrás" o guardar la página en favoritos.
 
-  La interfaz tiene MOVIMIENTO: al entrar a cada pantalla los bloques, las
-  tarjetas y las filas aparecen en cascada, los números de las tarjetas
-  "cuentan" hasta su valor, las barras se llenan desde cero, los botones
-  hacen una onda al tocarlos y la fila de la planilla destella en verde al
-  guardarse. Si Windows tiene activado "Efectos de animación: desactivado"
-  (o el navegador pide menos movimiento), todo eso se apaga solo.
+  La interfaz tiene MOVIMIENTO, al estilo de las páginas de Apple:
+    - al entrar a cada pantalla, lo que se ve aparece en cascada pasando de
+      desenfocado a nítido; los números "cuentan" hasta su valor y las
+      barras se llenan desde cero;
+    - al hacer scroll, lo que está más abajo se va acercando y enfocando
+      a medida que se baja (en Chrome y Edge sigue exactamente al scroll;
+      en otros navegadores aparece al llegar);
+    - el encabezado se vuelve de vidrio y se compacta al bajar;
+    - las tarjetas se inclinan en 3D siguiendo al mouse, con un brillo que
+      sigue al cursor;
+    - el cambio entre pantallas es una transición suave;
+    - en el login el titular aparece palabra por palabra y el fondo sigue
+      al mouse; si la contraseña es incorrecta el formulario se sacude.
+  Si Windows tiene desactivados los "Efectos de animación" (o el navegador
+  pide menos movimiento), todo eso se apaga solo.
 
   Entrando como ADMIN (admin / admin123):
   Inicio ...... resumen: carreras, materias, docentes, estudiantes, notas
@@ -640,9 +649,12 @@ Página web (src\main\resources\static\):
                        reportes, estudiantes, materias, docentes, carreras,
                        exoneraciones, usuarios, mis notas, mi asistencia
                        y ajustes. Muestra a cada rol solo lo suyo.
-                       animarEntrada() hace la entrada en cascada y el
-                       contador de números; formularioPuntajes() es la
-                       ventana para cambiar los puntajes.
+                       formularioPuntajes() es la ventana para cambiar
+                       los puntajes.
+      movimiento.js .. todas las animaciones: entrada en cascada, efecto
+                       ligado al scroll, encabezado que se compacta,
+                       tarjetas 3D, transición entre pantallas, contador
+                       de números y titular del login.
       nucleo.js ...... sesión (token), llamadas a la API con fetch() y
                        utilidades (fechas, números, búsqueda sin tildes).
       ui.js .......... piezas reutilizables: íconos, botones, avisos,

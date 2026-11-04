@@ -17,6 +17,7 @@ import {
 import {
     COLORES_BARRA, COLORES_PRIMARIOS, TEMA_POR_DEFECTO, aplicarTema, recordarTema, temaActual, temaRecordado,
 } from './tema.js';
+import { destacar, iniciarMovimiento, revelar, transicion } from './movimiento.js';
 
 const NOMBRES_ROL = { ADMIN: 'Administrador', DOCENTE: 'Docente', ESTUDIANTE: 'Estudiante' };
 
@@ -242,52 +243,10 @@ function ponerAcciones(...nodos) {
     $('#acciones-pagina').replaceChildren(...nodos.filter(Boolean));
 }
 
-const sinMovimiento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-let temporizadorRecien = 0;
-
 function animarEntrada(nodo) {
-    nodo.classList.remove('entrando', 'recien');
+    nodo.classList.remove('entrando');
     void nodo.offsetWidth; // reinicia la animación
     nodo.classList.add('entrando');
-    if (sinMovimiento()) return;
-    // Numera bloques, tarjetas y filas para que aparezcan uno detrás de otro (ver "MOVIMIENTO" en estilos.css)
-    nodo.querySelectorAll('.pila, .tarjetas, tbody').forEach((grupo) => {
-        [...grupo.children].forEach((hijo, i) => hijo.style.setProperty('--i', Math.min(i, 18)));
-    });
-    nodo.classList.add('recien');
-    clearTimeout(temporizadorRecien);
-    temporizadorRecien = setTimeout(() => nodo.classList.remove('recien'), 1600);
-    nodo.querySelectorAll('.dato__valor').forEach(contarHasta);
-}
-
-/** Anima un número de 0 a su valor ("8,5", "72 %", "12"...). Los textos que no son números quedan igual. */
-function contarHasta(nodo) {
-    const texto = nodo.textContent.trim();
-    const partes = /^(-?\d+(?:[.,]\d+)?)(\s*%?)$/.exec(texto);
-    if (!partes) return;
-    const decimales = (partes[1].split(/[.,]/)[1] ?? '').length;
-    const separador = partes[1].includes(',') ? ',' : '.';
-    const destino = Number(partes[1].replace(',', '.'));
-    if (!Number.isFinite(destino) || destino === 0) return;
-    const duracion = 900;
-    const inicio = performance.now();
-    const paso = (ahora) => {
-        const avance = Math.min((ahora - inicio) / duracion, 1);
-        const suavizado = 1 - Math.pow(1 - avance, 3);
-        nodo.textContent = (destino * suavizado).toFixed(decimales).replace('.', separador) + partes[2];
-        if (avance < 1) requestAnimationFrame(paso);
-        else nodo.textContent = texto;
-    };
-    requestAnimationFrame(paso);
-}
-
-/** Reinicia una animación de un solo uso (latido, destello, sacudida). */
-function destacar(nodo, clase) {
-    if (!nodo || sinMovimiento()) return;
-    nodo.classList.remove(clase);
-    void nodo.offsetWidth;
-    nodo.classList.add(clase);
-    nodo.addEventListener('animationend', () => nodo.classList.remove(clase), { once: true });
 }
 
 async function puedeSalir() {
@@ -339,20 +298,34 @@ async function navegar({ suave = false } = {}) {
 
     const contenido = $('#contenido');
     const turno = ++turnoDeRender;
+    let conEsqueleto = false;
+    let esperaEsqueleto = 0;
     if (!suave) {
         cambiosSinGuardar = () => 0;
         ponerAcciones();
-        contenido.replaceChildren(esqueleto());
+        // Si la pantalla tarda en llegar se muestra el esqueleto; si llega rápido se pasa directo
+        esperaEsqueleto = setTimeout(() => {
+            if (turno !== turnoDeRender) return;
+            conEsqueleto = true;
+            contenido.replaceChildren(esqueleto());
+        }, 180);
     }
     try {
         const vista = await ruta.render(parametros);
+        clearTimeout(esperaEsqueleto);
         if (turno !== turnoDeRender) return;
-        contenido.replaceChildren(vista);
-        if (!suave) {
-            animarEntrada(contenido);
-            $('#principal').scrollTo({ top: 0 });
+        if (suave) {
+            contenido.replaceChildren(vista);
+            return;
         }
+        // La cascada se prepara dentro de la transición para que no haya un parpadeo
+        await transicion(() => {
+            contenido.replaceChildren(vista);
+            $('#principal').scrollTo({ top: 0 });
+            revelar(contenido);
+        });
     } catch (error) {
+        clearTimeout(esperaEsqueleto);
         if (turno !== turnoDeRender || !estado.sesion) return;
         contenido.replaceChildren(estadoVacio({
             iconoNombre: 'alerta', titulo: 'No se pudo cargar esta pantalla', texto: error.message,
@@ -2260,15 +2233,7 @@ function formularioMiContrasena() {
 
 alExpirarSesion(() => cerrarSesion('La sesión expiró. Ingrese de nuevo.'));
 $('#form-login').addEventListener('submit', ingresar);
-// Onda que sale del punto donde se hace clic en cualquier botón
-document.addEventListener('pointerdown', (evento) => {
-    const objetivo = evento.target.closest('.boton');
-    if (!objetivo || objetivo.disabled || sinMovimiento()) return;
-    const caja = objetivo.getBoundingClientRect();
-    const onda = el('span', { class: 'onda', style: `left: ${evento.clientX - caja.left}px; top: ${evento.clientY - caja.top}px` });
-    objetivo.append(onda);
-    onda.addEventListener('animationend', () => onda.remove(), { once: true });
-});
+iniciarMovimiento();
 $('#login-volver').addEventListener('click', () => pasoDeLogin(false));
 $('#boton-salir').addEventListener('click', async () => {
     if (await puedeSalir()) cerrarSesion();

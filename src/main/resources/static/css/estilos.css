@@ -805,92 +805,158 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 }
 
 /* =====================================================================
-   MOVIMIENTO
-   La entrada de cada pantalla es escalonada: app.js marca el contenido
-   con .recien (por ~1,5 s) y numera los bloques con --i. Todo respeta
-   prefers-reduced-motion (ver más arriba).
+   MOVIMIENTO (ver js/movimiento.js)
+   - .intro ..... lo visible al entrar aparece en cascada, de desenfocado
+                  a nítido.
+   - .arrastre .. lo que está más abajo se acerca siguiendo al scroll
+                  (Chrome / Edge: animation-timeline: view()).
+   - .oculto .... respaldo para otros navegadores: aparece al llegar.
+   - .visto ..... ya se vio: llena barras y cuenta números.
+   Todo respeta prefers-reduced-motion (ver más arriba).
    ===================================================================== */
-:root { --resorte: cubic-bezier(.34, 1.56, .64, 1); --suave: cubic-bezier(.2, .7, .3, 1); }
+:root {
+    --curva-apple: cubic-bezier(.25, .1, .25, 1);
+    --curva-salida: cubic-bezier(.16, 1, .3, 1);
+    --resorte: cubic-bezier(.34, 1.56, .64, 1);
+    --suave: cubic-bezier(.2, .7, .3, 1);
+}
 
-/* Bloques, tarjetas y filas aparecen uno detrás de otro */
-.recien .pila > *, .recien .tarjetas > * {
-    animation: emerger 480ms var(--suave) both;
-    animation-delay: calc(var(--i, 0) * 60ms);
+/* ---------- Entrada de cada pantalla ---------- */
+.intro {
+    animation: enfocar 1s var(--curva-salida) both;
+    animation-delay: calc(var(--i, 0) * 80ms);
 }
-.recien .tabla tbody tr {
-    animation: fila-entra 380ms var(--suave) both;
-    animation-delay: calc(120ms + var(--i, 0) * 22ms);
+@keyframes enfocar {
+    from { opacity: 0; transform: translateY(32px) scale(.97); filter: blur(10px); }
+    to { opacity: 1; transform: none; filter: none; }
 }
-@keyframes emerger { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
-@keyframes fila-entra { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+tr.intro { animation-name: fila-enfoca; animation-duration: .7s; animation-delay: calc(150ms + var(--i, 0) * 35ms); }
+@keyframes fila-enfoca { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } }
 
-/* Barras que se llenan desde cero */
-.recien .medidor__relleno, .recien .avance__relleno, .recien .grafico-barras__barra {
-    animation: llenar 900ms var(--suave) 200ms both;
+/* Lo que está más abajo: respaldo por IntersectionObserver */
+.oculto { opacity: 0; transform: translateY(48px) scale(.96); filter: blur(12px); }
+.oculto.visto {
+    opacity: 1; transform: none; filter: none;
+    transition: opacity 1s var(--curva-apple), transform 1.1s var(--curva-salida), filter .9s var(--curva-apple);
+    transition-delay: var(--retraso, 0ms);
 }
-.recien .barra-apilada__segmento { animation: crecer 700ms var(--suave) 200ms both; transform-origin: left; }
+tr.oculto { transform: translateY(16px); filter: blur(4px); }
+
+/* Ligado al scroll: el bloque se acerca y se enfoca mientras entra a la pantalla */
+@supports (animation-timeline: view()) {
+    .arrastre {
+        animation: acercar linear both;
+        animation-timeline: view();
+        animation-range: entry 0% cover 35%;
+    }
+    @keyframes acercar {
+        from { opacity: 0; transform: translateY(80px) scale(.9); filter: blur(14px); }
+        to { opacity: 1; transform: none; filter: none; }
+    }
+}
+
+/* Barras que se llenan desde cero cuando se ven */
+.visto .medidor__relleno, .visto .avance__relleno, .visto .grafico-barras__barra,
+.visto.medidor__relleno, .intro .medidor__relleno, .intro .avance__relleno, .intro .grafico-barras__barra {
+    animation: llenar 1.4s var(--curva-salida) both;
+    animation-delay: calc(300ms + var(--retraso, 0ms));
+}
+.oculto:not(.visto) .medidor__relleno, .oculto:not(.visto) .avance__relleno, .oculto:not(.visto) .grafico-barras__barra { width: 0 !important; }
+.visto .barra-apilada__segmento, .intro .barra-apilada__segmento { animation: crecer 1.1s var(--curva-salida) 300ms both; transform-origin: left; }
 @keyframes llenar { from { width: 0; } }
 @keyframes crecer { from { transform: scaleX(0); opacity: 0; } }
 
-/* Tarjetas de datos: se elevan y el ícono reacciona */
-.dato { transition: border-color var(--transicion), transform 260ms var(--resorte), box-shadow 260ms var(--suave); }
-.dato:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--sombra), 0 14px 32px color-mix(in srgb, var(--primario) 18%, transparent);
+/* ---------- Transición entre pantallas (View Transitions) ---------- */
+.contenido { view-transition-name: contenido; }
+.encabezado__textos { view-transition-name: titulo; }
+::view-transition-old(contenido) { animation: vt-salir .28s var(--curva-apple) both; }
+/* El contenido nuevo no se anima entero: lo hace cada bloque en cascada (.intro) */
+::view-transition-new(contenido) { animation: none; }
+::view-transition-old(titulo) { animation: vt-titulo-salir .25s var(--curva-apple) both; }
+::view-transition-new(titulo) { animation: vt-titulo-entrar .5s var(--curva-salida) both; }
+@keyframes vt-salir { to { opacity: 0; transform: scale(.985); filter: blur(6px); } }
+@keyframes vt-titulo-salir { to { opacity: 0; transform: translateY(-8px); filter: blur(4px); } }
+@keyframes vt-titulo-entrar { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
+
+/* ---------- Encabezado de vidrio que se compacta al bajar ---------- */
+.encabezado {
+    transition: padding .5s var(--curva-salida), background-color .4s var(--curva-apple),
+                box-shadow .4s var(--curva-apple), border-color .4s var(--curva-apple);
 }
-.dato__icono { transition: transform 360ms var(--resorte), background-color var(--transicion); }
-.dato:hover .dato__icono { transform: rotate(-8deg) scale(1.12); background: color-mix(in srgb, var(--primario) 26%, transparent); }
+.encabezado__titulo { transition: font-size .5s var(--curva-salida); }
+.encabezado__subtitulo { transition: opacity .35s var(--curva-apple), max-height .5s var(--curva-salida), margin .5s var(--curva-salida); max-height: 3em; overflow: hidden; }
+.encabezado.compacto {
+    padding-top: 12px; padding-bottom: 12px;
+    background: color-mix(in srgb, var(--fondo) 68%, transparent);
+    backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: 0 1px 0 var(--borde), 0 12px 30px rgb(0 0 0 / .18);
+}
+.encabezado.compacto .encabezado__titulo { font-size: 1.12rem; }
+.encabezado.compacto .encabezado__subtitulo { opacity: 0; max-height: 0; margin: 0; }
 
-.panel { transition: border-color var(--transicion), box-shadow 300ms var(--suave); }
-.panel:hover { border-color: var(--borde-fuerte); }
+/* ---------- Tarjetas que se inclinan y brillan siguiendo al cursor ---------- */
+.dato, .tarjetas-materia > * {
+    position: relative; transform-style: preserve-3d;
+    transition: transform .6s var(--curva-salida), box-shadow .6s var(--curva-salida), border-color var(--transicion);
+}
+.dato.inclinado, .tarjetas-materia > .inclinado {
+    transform: perspective(900px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)) translateY(-4px) scale(1.02);
+    transition: transform .12s linear, box-shadow .6s var(--curva-salida), border-color var(--transicion);
+    box-shadow: var(--sombra), 0 24px 50px color-mix(in srgb, var(--primario) 22%, transparent);
+    border-color: var(--primario-borde);
+}
+.dato::after, .tarjetas-materia > *::after, .login__formulario::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%),
+                color-mix(in srgb, var(--primario) 20%, transparent), transparent 45%);
+    opacity: 0; transition: opacity .5s var(--curva-apple);
+}
+.inclinado::after { opacity: 1; }
+.dato__icono { transition: transform .6s var(--curva-salida), background-color var(--transicion); }
+.dato.inclinado .dato__icono { transform: translateZ(30px) scale(1.08); }
+.dato.inclinado .dato__valor { transform: translateZ(20px); }
+.dato__valor { display: inline-block; transition: transform .6s var(--curva-salida); }
 
-/* Botones: onda al hacer clic y un pequeño impulso */
-.boton { overflow: hidden; isolation: isolate; }
-.boton:active:not(:disabled) { transform: scale(.97); }
+/* ---------- Botones e interacciones ---------- */
+.boton { transition: background-color var(--transicion), border-color var(--transicion), color var(--transicion),
+                     transform .4s var(--curva-salida), box-shadow .4s var(--curva-salida); }
+.boton:active:not(:disabled) { transform: scale(.96); transition-duration: .1s; }
 .boton--primario:hover:not(:disabled) {
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--primario) 40%, transparent), inset 0 1px 0 rgb(255 255 255 / .12);
-    transform: translateY(-1px);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--primario) 40%, transparent), inset 0 1px 0 rgb(255 255 255 / .12);
 }
-.onda {
-    position: absolute; z-index: -1; pointer-events: none;
-    width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
-    background: currentColor; opacity: .28;
-    animation: onda 560ms var(--suave) forwards;
-}
-@keyframes onda { to { transform: scale(28); opacity: 0; } }
-.boton-icono { transition: background-color var(--transicion), color var(--transicion), transform 220ms var(--resorte); }
-.boton-icono:hover { transform: scale(1.1); }
-.boton-icono:active { transform: scale(.92); }
-
-/* Menú lateral: el ícono se desplaza y el indicador del activo crece */
-.nav__item .icono { transition: transform 260ms var(--resorte), color var(--transicion); }
-.nav__item:hover .icono { transform: translateX(3px) scale(1.08); }
-.nav__item.activo::before { animation: indicador 360ms var(--resorte); }
-@keyframes indicador { from { transform: scaleY(0); } }
-
-/* Chips y avatares */
-.recien .chip { animation: brotar 340ms var(--resorte) 250ms both; }
-@keyframes brotar { from { opacity: 0; transform: scale(.7); } }
-.avatar { transition: transform 260ms var(--resorte); }
-.tabla tbody tr:hover .avatar { transform: scale(1.1) rotate(-4deg); }
-.tabla tbody tr { transition: background-color var(--transicion), box-shadow var(--transicion); }
-.tabla tbody tr:hover { box-shadow: inset 3px 0 0 var(--primario); }
+.boton-icono { transition: background-color var(--transicion), color var(--transicion), transform .4s var(--curva-salida); }
+.boton-icono:active { transform: scale(.9); }
+.nav__item { transition: background-color .3s var(--curva-apple), color .3s var(--curva-apple); }
+.nav__item .icono { transition: transform .5s var(--curva-salida), color var(--transicion); }
+.nav__item:hover .icono { transform: translateX(2px); }
+.nav__item.activo::before { animation: indicador .6s var(--curva-salida); }
+@keyframes indicador { from { transform: scaleY(0); opacity: 0; } }
+.tabla tbody tr { transition: background-color .3s var(--curva-apple); }
+.panel { transition: border-color .4s var(--curva-apple); }
 
 /* Planilla: la fila guardada destella, el total late al cambiar */
-.planilla tr.fila--guardada { animation: destello 1100ms var(--suave); }
+.planilla tr.fila--guardada { animation: destello 1.4s var(--curva-apple); }
 @keyframes destello {
-    0% { background: color-mix(in srgb, var(--exito) 26%, transparent); }
+    0% { background: color-mix(in srgb, var(--exito) 24%, transparent); }
     100% { background: transparent; }
 }
 .planilla__total span { display: inline-block; }
-.latido { animation: latido 380ms var(--resorte); }
-@keyframes latido { 40% { transform: scale(1.22); color: var(--primario); } }
-.planilla__nota { transition: border-color var(--transicion), box-shadow var(--transicion), transform 200ms var(--resorte); }
+.latido { animation: latido .5s var(--resorte); }
+@keyframes latido { 40% { transform: scale(1.2); color: var(--primario); } }
+.planilla__nota { transition: border-color var(--transicion), box-shadow var(--transicion), transform .4s var(--curva-salida); }
 .planilla__nota:focus { transform: scale(1.06); }
 
-/* Distribución de puntajes (parciales, TP y final) */
+/* Modal: entra desde el desenfoque */
+.modal[open] { animation: modal-entrar .6s var(--curva-salida); }
+@keyframes modal-entrar { from { opacity: 0; transform: translateY(24px) scale(.96); filter: blur(8px); } }
+
+/* Estado vacío: el ícono flota */
+.vacio__icono { animation: flotar 4s ease-in-out infinite; }
+@keyframes flotar { 50% { transform: translateY(-6px); } }
+
+/* ---------- Distribución de puntajes (parciales, TP y final) ---------- */
 .distribucion { display: flex; height: 10px; gap: 2px; border-radius: 999px; overflow: hidden; min-width: 120px; }
-.distribucion__parte { transition: flex-grow 420ms var(--suave); }
+.distribucion__parte { transition: flex-grow .6s var(--curva-salida); }
 .distribucion__parte--p1 { background: var(--primario); }
 .distribucion__parte--p2 { background: color-mix(in srgb, var(--primario) 55%, #a855f7); }
 .distribucion__parte--tp { background: var(--aviso); }
@@ -906,44 +972,53 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .chip--boton {
     font-family: inherit; cursor: pointer; padding: 4px 12px; gap: 10px;
     border-color: var(--primario-borde); color: var(--texto);
-    transition: border-color var(--transicion), background-color var(--transicion), transform 220ms var(--resorte);
+    transition: border-color var(--transicion), background-color var(--transicion), transform .4s var(--curva-salida);
 }
 .chip--boton:hover { background: var(--primario-suave); transform: translateY(-1px); }
 .chip--boton:focus-visible { outline: none; box-shadow: var(--anillo); }
 .chip--boton .distribucion { min-width: 70px; height: 8px; }
 .chip--boton .icono { width: 14px; height: 14px; color: var(--texto-sutil); }
 
-/* Estado vacío: el ícono flota */
-.vacio__icono { animation: flotar 3.2s ease-in-out infinite; }
-@keyframes flotar { 50% { transform: translateY(-6px); } }
-
-/* Login: fondo vivo, logo que respira y puntos que entran en cascada */
-.login__marca { background-size: 140% 140%, 140% 140%, auto; animation: deriva 18s ease-in-out infinite alternate; }
-@keyframes deriva {
-    from { background-position: 0% 100%, 100% 0%, 0 0; }
-    to { background-position: 30% 70%, 60% 30%, 0 0; }
-}
+/* ---------- Login ---------- */
+.login__marca { --px: 0; --py: 0; }
 .login__marca::before {
-    content: ""; position: absolute; width: 420px; height: 420px; right: -120px; top: 30%;
-    border-radius: 50%; pointer-events: none; filter: blur(60px);
-    background: color-mix(in srgb, var(--primario) 35%, transparent);
-    animation: orbitar 14s ease-in-out infinite alternate;
+    content: ""; position: absolute; width: 520px; height: 520px; right: -140px; top: 22%;
+    border-radius: 50%; pointer-events: none; filter: blur(70px);
+    background: color-mix(in srgb, var(--primario) 38%, transparent);
+    transform: translate(calc(var(--px) * -60px), calc(var(--py) * -60px));
+    transition: transform 1.2s var(--curva-salida);
+    animation: orbitar 16s ease-in-out infinite alternate;
 }
-@keyframes orbitar { to { transform: translate(-180px, -120px) scale(1.25); } }
-.logo__icono { animation: respirar 4s ease-in-out infinite; }
-@keyframes respirar {
-    50% { box-shadow: 0 6px 28px color-mix(in srgb, var(--primario) 70%, transparent); transform: translateY(-1px); }
+@keyframes orbitar { to { translate: -200px -120px; scale: 1.2; } }
+.login__mensaje { transform: translate(calc(var(--px) * 14px), calc(var(--py) * 14px)); transition: transform 1.2s var(--curva-salida); }
+
+/* Titular que aparece palabra por palabra, con brillo de degradé */
+.login__titular .palabra {
+    display: inline-block;
+    background: linear-gradient(100deg, #ffffff 30%, color-mix(in srgb, var(--primario) 55%, #ffffff) 50%, #ffffff 70%);
+    background-size: 250% 100%; background-position: 100% 0;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.login.entrando .login__titular { animation: emerger 600ms var(--suave) both; }
-.login.entrando .login__puntos li { animation: emerger 520ms var(--suave) both; }
-.login.entrando .login__puntos li:nth-child(1) { animation-delay: 150ms; }
-.login.entrando .login__puntos li:nth-child(2) { animation-delay: 250ms; }
-.login.entrando .login__puntos li:nth-child(3) { animation-delay: 350ms; }
-.login.entrando .login__puntos li:nth-child(4) { animation-delay: 450ms; }
-.login.entrando .login__formulario { animation: emerger 560ms var(--suave) 120ms both; }
-.sacudir { animation: sacudir 420ms ease-in-out; }
-@keyframes sacudir { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.login.entrando .login__titular .palabra {
+    animation: palabra 1s var(--curva-salida) both, brillo-texto 3.5s var(--curva-apple) 1.2s both;
+    animation-delay: calc(var(--i) * 70ms), calc(1s + var(--i) * 40ms);
+}
+@keyframes palabra { from { opacity: 0; transform: translateY(.45em); filter: blur(12px); } }
+@keyframes brillo-texto { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.login.entrando .login__puntos li { animation: enfocar .9s var(--curva-salida) both; }
+.login.entrando .login__puntos li:nth-child(1) { animation-delay: .7s; }
+.login.entrando .login__puntos li:nth-child(2) { animation-delay: .8s; }
+.login.entrando .login__puntos li:nth-child(3) { animation-delay: .9s; }
+.login.entrando .login__formulario { animation: enfocar 1s var(--curva-salida) .25s both; }
+.login.entrando .logo { animation: enfocar .9s var(--curva-salida) both; }
+.login__formulario { position: relative; border-radius: var(--radio); transition: transform .6s var(--curva-salida); }
+.login__formulario.inclinado { transform: perspective(1200px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform .12s linear; }
+.sacudir { animation: sacudir .5s var(--curva-apple) !important; }
+@keyframes sacudir { 15%, 55% { transform: translateX(-9px); } 35%, 75% { transform: translateX(9px); } }
 
 @media (prefers-reduced-motion: reduce) {
-    .vacio__icono, .logo__icono, .login__marca, .login__marca::before { animation: none !important; }
+    .vacio__icono, .login__marca::before, .intro, .arrastre, .login__titular .palabra { animation: none !important; }
+    .oculto { opacity: 1 !important; transform: none !important; filter: none !important; }
+    ::view-transition-old(contenido), ::view-transition-new(contenido),
+    ::view-transition-old(titulo), ::view-transition-new(titulo) { animation: none !important; }
 }
