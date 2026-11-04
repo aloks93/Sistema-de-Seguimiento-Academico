@@ -4,6 +4,7 @@
  *  - Lo que está más abajo se va acercando y enfocando a medida que se hace scroll; en navegadores con
  *    animaciones ligadas al scroll (Chrome / Edge) el movimiento sigue exactamente al scroll.
  *  - Las filas de las tablas aparecen al llegar a ellas.
+ *  - Scroll con inercia: la rueda del mouse no salta de a 100 px, se desliza.
  *  - El encabezado se compacta y se vuelve vidrio al bajar.
  *  - Tarjetas que se inclinan en 3D siguiendo el mouse, con un brillo que sigue al cursor.
  *  - Transición suave entre pantallas (View Transitions) y titular del login que aparece palabra por palabra.
@@ -148,10 +149,68 @@ export function titularPorPalabras(nodo) {
 
 const SELECTOR_INCLINABLE = '.dato, .tarjetas-materia > *, .login__formulario';
 
+/**
+ * Scroll con inercia para la rueda del mouse: en lugar de saltar, el contenido se desliza hasta su destino.
+ * No toca el teclado, la barra de desplazamiento ni los paneles que tienen scroll propio.
+ */
+function scrollConInercia(contenedor) {
+    let destino = 0;
+    let posicion = 0;
+    let animando = false;
+    let anterior = 0;
+
+    const tieneScrollPropio = (nodo) => {
+        for (let actual = nodo; actual && actual !== contenedor; actual = actual.parentElement) {
+            if (actual.scrollHeight > actual.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(actual).overflowY)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    contenedor.addEventListener('wheel', (evento) => {
+        if (sinMovimiento() || evento.ctrlKey || Math.abs(evento.deltaX) > Math.abs(evento.deltaY)) return;
+        if (tieneScrollPropio(evento.target)) return;
+        evento.preventDefault();
+        const factor = evento.deltaMode === 1 ? 40 : evento.deltaMode === 2 ? contenedor.clientHeight : 1;
+        if (!animando) {
+            posicion = contenedor.scrollTop;
+            destino = posicion;
+        }
+        const maximo = contenedor.scrollHeight - contenedor.clientHeight;
+        destino = Math.max(0, Math.min(destino + evento.deltaY * factor, maximo));
+        if (!animando) {
+            animando = true;
+            anterior = performance.now();
+            requestAnimationFrame(paso);
+        }
+    }, { passive: false });
+
+    function paso(ahora) {
+        // Si el usuario movió la barra o usó el teclado mientras tanto, se le deja el control
+        const desvio = Math.abs(contenedor.scrollTop - posicion);
+        if (desvio > 80) {
+            animando = false;
+            return;
+        }
+        if (desvio > 2) posicion = contenedor.scrollTop;
+        const dt = Math.min(ahora - anterior, 64);
+        anterior = ahora;
+        const suavizado = 1 - Math.pow(1 - 0.16, dt / 16.67);
+        posicion += (destino - posicion) * suavizado;
+        if (Math.abs(destino - posicion) < 0.5) posicion = destino;
+        contenedor.scrollTop = posicion;
+        if (posicion !== destino) requestAnimationFrame(paso);
+        else animando = false;
+    }
+}
+
 /** Efectos globales que se instalan una sola vez. */
 export function iniciarMovimiento() {
-    // Encabezado que se compacta al bajar
     const principal = contenedorScroll();
+    if (principal) scrollConInercia(principal);
+
+    // Encabezado que se compacta al bajar
     const encabezado = document.querySelector('.encabezado');
     if (principal && encabezado) {
         let pendiente = false;

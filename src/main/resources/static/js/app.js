@@ -302,6 +302,7 @@ async function navegar({ suave = false } = {}) {
     let esperaEsqueleto = 0;
     if (!suave) {
         cambiosSinGuardar = () => 0;
+        cerrarModal();
         ponerAcciones();
         // Si la pantalla tarda en llegar se muestra el esqueleto; si llega rápido se pasa directo
         esperaEsqueleto = setTimeout(() => {
@@ -321,7 +322,7 @@ async function navegar({ suave = false } = {}) {
         // La cascada se prepara dentro de la transición para que no haya un parpadeo
         await transicion(() => {
             contenido.replaceChildren(vista);
-            $('#principal').scrollTo({ top: 0 });
+            $('#principal').scrollTo({ top: 0, behavior: 'instant' });
             revelar(contenido);
         });
     } catch (error) {
@@ -832,11 +833,11 @@ function planillaNotas(materia, inscriptos, notas, asistencia, selector) {
         panel({ contenido: el('div', { class: 'planilla__cabecera' }, selector, resumen), clase: 'panel--selector' }),
         inscriptos.length > 0 && barraHerramientas(
             buscador('Buscar estudiante…', () => contenedor),
-            el('span', { class: 'herramientas__ayuda' }, icono('info'),
-                `Parciales de ${puntajes.primerParcial} y ${puntajes.segundoParcial}, trabajo práctico de ${puntajes.trabajoPractico} y examen final de ${puntajes.examenFinal}: se aprueba con 60. Enter baja al siguiente estudiante.`),
             el('span', { class: 'herramientas__empuje' }),
             boton('Asistencia', () => ir(`asistencia?materia=${materia.id}&ver=resumen`), { variante: 'fantasma', iconoNombre: 'asistencia' }),
             botonExcel('Exportar planilla', `/api/exportar/notas?materiaId=${materia.id}`)),
+        inscriptos.length > 0 && el('p', { class: 'herramientas__ayuda' }, icono('info'),
+            `Parciales de ${puntajes.primerParcial} y ${puntajes.segundoParcial}, trabajo práctico de ${puntajes.trabajoPractico} y examen final de ${puntajes.examenFinal}. Se aprueba con 60. Enter baja al siguiente estudiante.`),
         contenedor,
         barraGuardar);
 }
@@ -935,14 +936,13 @@ async function vistaMaterias(parametros) {
 
     const contenedor = el('div', {}, tabla({
         columnas: [
-            { titulo: 'Materia', celda: (m) => el('div', { class: 'celda-doble' },
-                el('span', {}, m.nombre), el('span', { class: 'sutil' }, m.codigo)) },
+            { titulo: 'Materia', clase: 'columna-principal', celda: (m) => el('div', { class: 'celda-doble' },
+                el('span', {}, m.nombre),
+                el('span', { class: 'sutil' }, `${m.codigo} · ${m.semestre}° semestre · ${m.creditos} créditos`)) },
             { titulo: 'Carrera', celda: (m) => chip(m.carreraNombre, 'primario') },
-            { titulo: 'Semestre', clase: 'num', celda: (m) => `${m.semestre}°` },
-            { titulo: 'Créditos', clase: 'num', celda: (m) => m.creditos },
             { titulo: 'Inscriptos', clase: 'num', celda: (m) => m.inscriptos },
-            { titulo: 'Asistencia mín.', clase: 'num', celda: (m) => `${m.asistenciaMinima} %` },
-            { titulo: 'Puntajes', celda: (m) => el('div', { class: 'celda-doble' },
+            { titulo: 'Asist. mín.', clase: 'num', celda: (m) => `${m.asistenciaMinima} %` },
+            { titulo: 'Puntajes', clase: 'columna-puntajes', celda: (m) => el('div', { class: 'celda-doble' },
                 barraDistribucion(puntajesDe(m)), el('span', { class: 'sutil' }, textoPuntajes(puntajesDe(m)))) },
             esAdmin() && { titulo: 'Docente', celda: (m) => (m.docenteNombre ? persona(m.docenteNombre, m.docenteUsername) : chip('Sin asignar', 'aviso')) },
             { titulo: '', clase: 'acciones', celda: (m) => (esAdmin()
@@ -1264,7 +1264,8 @@ async function vistaMisNotas() {
                 detalle: `${notas.filter((n) => n.calificacion === null).length} en curso` }),
             tarjetaDato({ iconoNombre: 'estrella', titulo: 'Mejor nota', valor: valores.length ? Math.max(...valores) : '–' })),
         el('p', { class: 'herramientas__ayuda' }, icono('info'),
-            'Cada materia define cuánto valen sus parciales, trabajo práctico y examen final (en total 100; por defecto 15 + 15 + 20 + 50). Se aprueba con 60: 60-69 = 2, 70-79 = 3, 80-90 = 4, 91-100 = 5.'),
+            'Cada materia define cuánto vale cada parte (en total 100). Se aprueba con 60.',
+            el('span', { class: 'escala' }, ['60-69 = 2', '70-79 = 3', '80-90 = 4', '91-100 = 5'].map((texto) => el('span', {}, texto)))),
         notas.length > 6 && barraHerramientas(buscador('Buscar materia…', () => contenedor)),
         contenedor);
 }

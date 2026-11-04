@@ -304,7 +304,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .fondo-lateral { display: none; }
 
 /* ---------- Área principal ---------- */
-.principal { overflow-y: auto; min-height: 0; scroll-behavior: smooth; }
+.principal { overflow-y: auto; min-height: 0; overscroll-behavior: contain; overflow-anchor: none; }
 .encabezado {
     position: sticky; top: 0; z-index: 5;
     display: flex; align-items: center; gap: 16px;
@@ -337,7 +337,8 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .panel--selector { padding: 18px 22px; }
 
 /* ---------- Tarjetas de datos ---------- */
-.tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.tarjetas { display: flex; flex-wrap: wrap; gap: 14px; }
+.tarjetas > * { flex: 1 1 165px; min-width: 0; }
 .dato {
     display: flex; align-items: flex-start; gap: 14px; padding: 18px;
     background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra);
@@ -658,7 +659,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
     .buscador { max-width: none; }
     .filtro { flex: 1 1 100%; }
     .filtro__select { flex: 1; min-width: 0; }
-    .tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tarjetas > * { flex-basis: calc(50% - 7px); }
     .dato { padding: 14px; gap: 10px; flex-direction: column; }
     .dato__valor { font-size: 1.35rem; }
     .panel { padding: 16px; }
@@ -823,47 +824,57 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 
 /* ---------- Entrada de cada pantalla ---------- */
 .intro {
-    animation: enfocar 1s var(--curva-salida) both;
-    animation-delay: calc(var(--i, 0) * 80ms);
+    animation: enfocar .9s var(--curva-salida) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+    will-change: transform, opacity;
 }
 @keyframes enfocar {
-    from { opacity: 0; transform: translateY(32px) scale(.97); filter: blur(10px); }
+    from { opacity: 0; transform: translate3d(0, 28px, 0) scale(.975); }
+    to { opacity: 1; transform: none; }
+}
+/* Solo las tarjetas chicas pasan por el desenfoque: en bloques grandes cuesta demasiado */
+.dato.intro { animation-name: enfocar-nitido; }
+@keyframes enfocar-nitido {
+    from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.96); filter: blur(6px); }
     to { opacity: 1; transform: none; filter: none; }
 }
-tr.intro { animation-name: fila-enfoca; animation-duration: .7s; animation-delay: calc(150ms + var(--i, 0) * 35ms); }
-@keyframes fila-enfoca { from { opacity: 0; transform: translateY(12px); filter: blur(4px); } }
+tr.intro { animation-name: fila-enfoca; animation-duration: .6s; animation-delay: calc(120ms + var(--i, 0) * 30ms); }
+@keyframes fila-enfoca { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
 
 /* Lo que está más abajo: respaldo por IntersectionObserver */
-.oculto { opacity: 0; transform: translateY(48px) scale(.96); filter: blur(12px); }
+.oculto { opacity: 0; transform: translate3d(0, 40px, 0) scale(.97); }
 .oculto.visto {
-    opacity: 1; transform: none; filter: none;
-    transition: opacity 1s var(--curva-apple), transform 1.1s var(--curva-salida), filter .9s var(--curva-apple);
+    opacity: 1; transform: none;
+    transition: opacity .9s var(--curva-apple), transform 1s var(--curva-salida);
     transition-delay: var(--retraso, 0ms);
 }
-tr.oculto { transform: translateY(16px); filter: blur(4px); }
+tr.oculto { transform: translate3d(0, 14px, 0); }
 
 /* Ligado al scroll: el bloque se acerca y se enfoca mientras entra a la pantalla */
 @supports (animation-timeline: view()) {
+    /* El recorrido es una distancia fija (los primeros 360 px), así un bloque alto no queda a medio llegar */
     .arrastre {
         animation: acercar linear both;
         animation-timeline: view();
-        animation-range: entry 0% cover 35%;
+        animation-range: entry 0px entry 360px;
+        will-change: transform, opacity;
     }
     @keyframes acercar {
-        from { opacity: 0; transform: translateY(80px) scale(.9); filter: blur(14px); }
-        to { opacity: 1; transform: none; filter: none; }
+        from { opacity: 0; transform: translate3d(0, 70px, 0) scale(.93); }
+        to { opacity: 1; transform: none; }
     }
 }
 
 /* Barras que se llenan desde cero cuando se ven */
 .visto .medidor__relleno, .visto .avance__relleno, .visto .grafico-barras__barra,
 .visto.medidor__relleno, .intro .medidor__relleno, .intro .avance__relleno, .intro .grafico-barras__barra {
-    animation: llenar 1.4s var(--curva-salida) both;
-    animation-delay: calc(300ms + var(--retraso, 0ms));
+    animation: llenar 1.3s var(--curva-salida) both;
+    animation-delay: calc(250ms + var(--retraso, 0ms));
+    transform-origin: left center;
 }
-.oculto:not(.visto) .medidor__relleno, .oculto:not(.visto) .avance__relleno, .oculto:not(.visto) .grafico-barras__barra { width: 0 !important; }
+.oculto:not(.visto) .medidor__relleno, .oculto:not(.visto) .avance__relleno, .oculto:not(.visto) .grafico-barras__barra { transform: scaleX(0); }
 .visto .barra-apilada__segmento, .intro .barra-apilada__segmento { animation: crecer 1.1s var(--curva-salida) 300ms both; transform-origin: left; }
-@keyframes llenar { from { width: 0; } }
+@keyframes llenar { from { transform: scaleX(0); } }
 @keyframes crecer { from { transform: scaleX(0); opacity: 0; } }
 
 /* ---------- Transición entre pantallas (View Transitions) ---------- */
@@ -874,25 +885,28 @@ tr.oculto { transform: translateY(16px); filter: blur(4px); }
 ::view-transition-new(contenido) { animation: none; }
 ::view-transition-old(titulo) { animation: vt-titulo-salir .25s var(--curva-apple) both; }
 ::view-transition-new(titulo) { animation: vt-titulo-entrar .5s var(--curva-salida) both; }
-@keyframes vt-salir { to { opacity: 0; transform: scale(.985); filter: blur(6px); } }
-@keyframes vt-titulo-salir { to { opacity: 0; transform: translateY(-8px); filter: blur(4px); } }
-@keyframes vt-titulo-entrar { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } }
+@keyframes vt-salir { to { opacity: 0; transform: scale(.985); } }
+@keyframes vt-titulo-salir { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes vt-titulo-entrar { from { opacity: 0; transform: translateY(10px); } }
 
 /* ---------- Encabezado de vidrio que se compacta al bajar ---------- */
-.encabezado {
-    transition: padding .5s var(--curva-salida), background-color .4s var(--curva-apple),
-                box-shadow .4s var(--curva-apple), border-color .4s var(--curva-apple);
-}
-.encabezado__titulo { transition: font-size .5s var(--curva-salida); }
-.encabezado__subtitulo { transition: opacity .35s var(--curva-apple), max-height .5s var(--curva-salida), margin .5s var(--curva-salida); max-height: 3em; overflow: hidden; }
+/* La altura nunca cambia (así el contenido no salta): el encabezado se pega 26 px más arriba
+   y lo de adentro baja y se achica con transformaciones */
+.encabezado { transition: background-color .4s var(--curva-apple), box-shadow .4s var(--curva-apple); }
+@media (min-width: 641px) { .encabezado { top: -26px; } }
+.encabezado > * { transition: transform .55s var(--curva-salida); }
+.encabezado__titulo { transform-origin: left center; transition: transform .55s var(--curva-salida); }
+.encabezado__subtitulo { transition: opacity .3s var(--curva-apple), transform .55s var(--curva-salida); }
 .encabezado.compacto {
-    padding-top: 12px; padding-bottom: 12px;
     background: color-mix(in srgb, var(--fondo) 68%, transparent);
-    backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(160%) blur(14px);
     box-shadow: 0 1px 0 var(--borde), 0 12px 30px rgb(0 0 0 / .18);
 }
-.encabezado.compacto .encabezado__titulo { font-size: 1.12rem; }
-.encabezado.compacto .encabezado__subtitulo { opacity: 0; max-height: 0; margin: 0; }
+@media (min-width: 641px) {
+    .encabezado.compacto > * { transform: translate3d(0, 13px, 0); }
+    .encabezado.compacto .encabezado__titulo { transform: translate3d(0, 9px, 0) scale(.82); }
+    .encabezado.compacto .encabezado__subtitulo { opacity: 0; transform: translate3d(0, -4px, 0); }
+}
 
 /* ---------- Tarjetas que se inclinan y brillan siguiendo al cursor ---------- */
 .dato, .tarjetas-materia > * {
@@ -901,7 +915,7 @@ tr.oculto { transform: translateY(16px); filter: blur(4px); }
 }
 .dato.inclinado, .tarjetas-materia > .inclinado {
     transform: perspective(900px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)) translateY(-4px) scale(1.02);
-    transition: transform .12s linear, box-shadow .6s var(--curva-salida), border-color var(--transicion);
+    transition: transform .35s var(--curva-salida), box-shadow .6s var(--curva-salida), border-color var(--transicion);
     box-shadow: var(--sombra), 0 24px 50px color-mix(in srgb, var(--primario) 22%, transparent);
     border-color: var(--primario-borde);
 }
@@ -948,7 +962,7 @@ tr.oculto { transform: translateY(16px); filter: blur(4px); }
 
 /* Modal: entra desde el desenfoque */
 .modal[open] { animation: modal-entrar .6s var(--curva-salida); }
-@keyframes modal-entrar { from { opacity: 0; transform: translateY(24px) scale(.96); filter: blur(8px); } }
+@keyframes modal-entrar { from { opacity: 0; transform: translate3d(0, 20px, 0) scale(.96); } }
 
 /* Estado vacío: el ícono flota */
 .vacio__icono { animation: flotar 4s ease-in-out infinite; }
@@ -1012,7 +1026,7 @@ tr.oculto { transform: translateY(16px); filter: blur(4px); }
 .login.entrando .login__formulario { animation: enfocar 1s var(--curva-salida) .25s both; }
 .login.entrando .logo { animation: enfocar .9s var(--curva-salida) both; }
 .login__formulario { position: relative; border-radius: var(--radio); transition: transform .6s var(--curva-salida); }
-.login__formulario.inclinado { transform: perspective(1200px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform .12s linear; }
+.login__formulario.inclinado { transform: perspective(1200px) rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform .45s var(--curva-salida); }
 .sacudir { animation: sacudir .5s var(--curva-apple) !important; }
 @keyframes sacudir { 15%, 55% { transform: translateX(-9px); } 35%, 75% { transform: translateX(9px); } }
 
@@ -1022,3 +1036,19 @@ tr.oculto { transform: translateY(16px); filter: blur(4px); }
     ::view-transition-old(contenido), ::view-transition-new(contenido),
     ::view-transition-old(titulo), ::view-transition-new(titulo) { animation: none !important; }
 }
+
+/* ---------- Arreglos de diseño ---------- */
+/* El nombre principal de cada fila no se parte en dos renglones */
+.tabla .celda-doble > span:first-child, .tabla .persona__nombre { white-space: nowrap; }
+/* En la planilla el ancho se lo llevan los casilleros: ahí el nombre sí puede bajar de renglón */
+.planilla .persona__nombre { white-space: normal; }
+.tabla .columna-principal { min-width: 220px; }
+.tabla .columna-puntajes .distribucion { min-width: 96px; width: 96px; }
+.tabla .columna-puntajes .sutil { white-space: nowrap; }
+/* Escala de calificaciones como fichas que no se cortan */
+.escala { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; margin-left: 4px; }
+.escala > span {
+    white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: .78rem;
+    background: var(--superficie-hover); border: 1px solid var(--borde); color: var(--texto-sutil);
+}
+p.herramientas__ayuda { margin: -6px 0 0; flex-wrap: wrap; }
