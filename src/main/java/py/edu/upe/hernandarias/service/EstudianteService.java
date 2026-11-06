@@ -1,6 +1,7 @@
 package py.edu.upe.hernandarias.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import py.edu.upe.hernandarias.entity.Carrera;
 import py.edu.upe.hernandarias.entity.Estudiante;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
+import py.edu.upe.hernandarias.exception.ConDatosAsociadosException;
 import py.edu.upe.hernandarias.exception.ConflictoException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.AsistenciaRepository;
@@ -116,21 +118,31 @@ public class EstudianteService {
     }
 
     /**
-     * Elimina el estudiante y su usuario; solo si no tiene notas ni asistencia registrada.
-     * Sus inscripciones y exoneraciones se borran con él.
+     * Elimina el estudiante y su usuario. Sus inscripciones y exoneraciones se borran con él.
+     * Si tiene notas o asistencia registrada solo se elimina con {@code forzar}, que borra también esos datos.
      */
     @Transactional
-    public void eliminar(Long id) {
+    public void eliminar(Long id, boolean forzar) {
         Estudiante estudiante = buscar(id);
-        if (calificacionRepository.existsByEstudianteId(id) || asistenciaRepository.existsByEstudianteId(id)) {
-            throw new ConflictoException(("El estudiante %s tiene notas o asistencia registrada; "
-                    + "elimine primero esos datos o desactive su usuario").formatted(estudiante.getMatricula()));
+        boolean tieneDatos = calificacionRepository.existsByEstudianteId(id) || asistenciaRepository.existsByEstudianteId(id);
+        if (tieneDatos && !forzar) {
+            throw new ConDatosAsociadosException(("%s (%s) tiene notas o asistencia registrada. "
+                    + "Si lo elimina igual, también se borran sus notas y su asistencia.")
+                    .formatted(estudiante.getNombreCompleto(), estudiante.getMatricula()));
         }
+        calificacionRepository.eliminarDelEstudiante(id);
+        asistenciaRepository.eliminarDelEstudiante(id);
         exoneracionRepository.eliminarDelEstudiante(id);
         inscripcionRepository.eliminarDelEstudiante(id);
         Usuario usuario = estudiante.getUsuario();
         estudianteRepository.delete(estudiante);
         usuarioRepository.delete(usuario);
+    }
+
+    /** Estudiante cuyo usuario es {@code usuarioId}, si existe. */
+    @Transactional(readOnly = true)
+    public Optional<Long> idDelUsuario(Long usuarioId) {
+        return estudianteRepository.findByUsuarioId(usuarioId).map(Estudiante::getId);
     }
 
     private Estudiante buscar(Long id) {

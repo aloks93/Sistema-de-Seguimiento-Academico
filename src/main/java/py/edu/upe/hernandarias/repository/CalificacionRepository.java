@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import py.edu.upe.hernandarias.entity.Calificacion;
@@ -37,4 +38,8 @@ public interface CalificacionRepository extends JpaRepository<Calificacion, Long
     long contarQueSuperan(@Param("materiaId") Long materiaId, @Param("primerParcial") int primerParcial,
                           @Param("segundoParcial") int segundoParcial, @Param("trabajoPractico") int trabajoPractico,
                           @Param("examenFinal") int examenFinal);
+
+    @Modifying
+    @Query("delete from Calificacion c where c.estudiante.id = :estudianteId")
+    void eliminarDelEstudiante(@Param("estudianteId") Long estudianteId);
 }

@@ -2,11 +2,13 @@
 
 export const estado = {
     sesion: null, // { token, username, rol }
-    perfil: null, // { username, rol, nombre, preferencias }
+    perfil: null, // { username, rol, nombre, preferencias, dosFactores, superAdmin }
 };
 
 export const esAdmin = () => estado.sesion?.rol === 'ADMIN';
 export const esDocente = () => estado.sesion?.rol === 'DOCENTE';
+/** El único administrador que puede eliminar o modificar a otros administradores. */
+export const esSuperAdmin = () => esAdmin() && Boolean(estado.perfil?.superAdmin);
 export const $ = (selector) => document.querySelector(selector);
 
 // ======================= Sesión =======================
@@ -45,6 +47,7 @@ export class ErrorApi extends Error {
     constructor(status, problema) {
         super(mensajeDeError(status, problema));
         this.status = status;
+        this.problema = problema; // respuesta completa del servidor (p. ej. forzable al eliminar)
     }
 }
 

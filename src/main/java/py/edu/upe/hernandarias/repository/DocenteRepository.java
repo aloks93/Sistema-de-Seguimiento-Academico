@@ -12,4 +12,6 @@ public interface DocenteRepository extends JpaRepository<Docente, Long> {
     List<Docente> findAllByOrderByNombreCompletoAsc();
 
     Optional<Docente> findByUsuarioUsername(String username);
+
+    Optional<Docente> findByUsuarioId(Long usuarioId);
 }

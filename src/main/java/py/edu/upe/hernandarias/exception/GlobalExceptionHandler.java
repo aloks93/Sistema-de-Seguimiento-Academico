@@ -28,6 +28,14 @@ public class GlobalExceptionHandler {
         return problema(HttpStatus.CONFLICT, "Conflicto", ex.getMessage());
     }
 
+    /** Como un conflicto, pero avisa a la interfaz que puede repetirse con ?forzar=true. */
+    @ExceptionHandler(ConDatosAsociadosException.class)
+    public ProblemDetail handleConDatosAsociados(ConDatosAsociadosException ex) {
+        ProblemDetail problema = problema(HttpStatus.CONFLICT, "Tiene datos asociados", ex.getMessage());
+        problema.setProperty("forzable", true);
+        return problema;
+    }
+
     @ExceptionHandler(CodigoInvalidoException.class)
     public ProblemDetail handleCodigoInvalido(CodigoInvalidoException ex) {
         return problema(HttpStatus.UNAUTHORIZED, "No autorizado", ex.getMessage());

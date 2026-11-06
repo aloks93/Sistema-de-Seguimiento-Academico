@@ -4,6 +4,9 @@ import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import py.edu.upe.hernandarias.entity.Asistencia;
 
 public interface AsistenciaRepository extends JpaRepository<Asistencia, Long> {
@@ -23,4 +26,8 @@ public interface AsistenciaRepository extends JpaRepository<Asistencia, Long> {
     boolean existsByEstudianteId(Long estudianteId);
 
     boolean existsByEstudianteIdAndClaseMateriaId(Long estudianteId, Long materiaId);
+
+    @Modifying
+    @Query("delete from Asistencia a where a.estudiante.id = :estudianteId")
+    void eliminarDelEstudiante(@Param("estudianteId") Long estudianteId);
 }

@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import py.edu.upe.hernandarias.entity.Docente;
 import py.edu.upe.hernandarias.entity.Materia;
 import py.edu.upe.hernandarias.entity.Rol;
 import py.edu.upe.hernandarias.entity.Usuario;
+import py.edu.upe.hernandarias.exception.ConDatosAsociadosException;
 import py.edu.upe.hernandarias.exception.ConflictoException;
 import py.edu.upe.hernandarias.exception.RecursoNoEncontradoException;
 import py.edu.upe.hernandarias.repository.DocenteRepository;
@@ -82,18 +84,30 @@ public class DocenteService {
         return DocenteResponse.from(docente, materias);
     }
 
-    /** Elimina el docente y su usuario; solo si no tiene materias a cargo. */
+    /**
+     * Elimina el docente y su usuario. Si tiene materias a cargo solo se elimina con {@code forzar}:
+     * esas materias quedan "sin asignar" (sus notas y asistencia se conservan).
+     */
     @Transactional
-    public void eliminar(Long id) {
+    public void eliminar(Long id, boolean forzar) {
         Docente docente = buscar(id);
         if (materiaRepository.existsByDocenteId(id)) {
-            throw new ConflictoException(
-                    "%s tiene materias a cargo; asígnelas a otro docente o desactive su usuario"
-                            .formatted(docente.getNombreCompleto()));
+            if (!forzar) {
+                throw new ConDatosAsociadosException(("%s tiene materias a cargo. Si lo elimina igual, esas materias "
+                        + "quedan sin docente asignado (las notas y la asistencia se conservan).")
+                        .formatted(docente.getNombreCompleto()));
+            }
+            materiaRepository.quitarDocente(id);
         }
         Usuario usuario = docente.getUsuario();
         docenteRepository.delete(docente);
         usuarioRepository.delete(usuario);
+    }
+
+    /** Docente cuyo usuario es {@code usuarioId}, si existe. */
+    @Transactional(readOnly = true)
+    public Optional<Long> idDelUsuario(Long usuarioId) {
+        return docenteRepository.findByUsuarioId(usuarioId).map(Docente::getId);
     }
 
     private Docente buscar(Long id) {

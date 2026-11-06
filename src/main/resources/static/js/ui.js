@@ -43,6 +43,9 @@ const ICONOS = {
     escudo: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     asistencia: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/>',
     atras: '<path d="M19 12H5M11 18l-6-6 6-6"/>',
+    buzon: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    carpeta: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    corona: '<path d="m2 6 4 11h12l4-11-6 5-4-7-4 7-6-5Z"/><path d="M6 21h12"/>',
 };
 
 export function icono(nombre, clase = 'icono') {
@@ -152,7 +155,7 @@ function abrirModal(contenido) {
     const dialogo = modal();
     dialogo.replaceChildren(contenido);
     if (!dialogo.open) dialogo.showModal();
-    contenido.querySelector('input:not([disabled]):not([type=hidden]), select:not([disabled])')?.focus();
+    contenido.querySelector('input:not([disabled]):not([type=hidden]):not([type=checkbox]), select:not([disabled]), textarea:not([disabled])')?.focus();
 }
 
 export function cerrarModal() {
@@ -189,6 +192,7 @@ export function confirmar({ titulo, mensaje, textoBoton = 'Confirmar', peligro =
 /**
  * Formulario en ventana modal. Cada campo: { nombre, etiqueta, tipo, opciones: [{valor, texto}],
  * requerido, bloqueado, ayuda, placeholder, min, max, minlength, maxlength, ancho: 'completo' }.
+ * tipo 'textarea' = texto de varias líneas; tipo 'checkbox' = casilla (en los datos llega 'on' si está marcada).
  * alGuardar(datos) puede lanzar un error: se muestra dentro de la ventana sin cerrarla.
  */
 export function abrirFormulario({ titulo, descripcion, antes, campos, valores = {}, textoBoton = 'Guardar', alGuardar }) {
@@ -227,7 +231,18 @@ export function abrirFormulario({ titulo, descripcion, antes, campos, valores = 
 function crearCampo(campo, valor) {
     const { nombre, etiqueta, tipo = 'text', opciones = [], requerido = true, bloqueado, ayuda, ancho } = campo;
     let control;
-    if (tipo === 'select') {
+    if (tipo === 'checkbox') {
+        control = el('input', { name: nombre, type: 'checkbox', disabled: bloqueado });
+        control.checked = Boolean(valor);
+        return el('label', { class: `campo campo--casilla ${ancho === 'completo' ? 'campo--completo' : ''}` },
+            control,
+            el('span', { class: 'campo__textos' }, el('span', { class: 'campo__etiqueta' }, etiqueta),
+                ayuda && el('small', { class: 'campo__ayuda' }, ayuda)));
+    }
+    if (tipo === 'textarea') {
+        control = el('textarea', { name: nombre, required: requerido, disabled: bloqueado, rows: campo.filas ?? 3,
+            placeholder: campo.placeholder, maxlength: campo.maxlength });
+    } else if (tipo === 'select') {
         control = el('select', { name: nombre, required: requerido, disabled: bloqueado },
             opciones.map((opcion) => el('option', { value: opcion.valor }, opcion.texto)));
     } else {

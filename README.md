@@ -54,7 +54,8 @@ Los `.cmd` llaman a los scripts de PowerShell de `scripts\`. Explicación detall
 
 | Rol | Puede |
 |---|---|
-| ADMIN (super usuario) | Gestionar carreras, docentes, materias (y qué docente está a cargo de cada una), estudiantes, administradores, todas las notas y la asistencia; otorgar **exoneraciones de asistencia** |
+| ADMIN | Gestionar carreras, docentes, materias (y qué docente está a cargo de cada una), estudiantes, administradores, todas las notas y la asistencia; otorgar **exoneraciones de asistencia**; atender el **buzón** |
+| Super administrador | Un único ADMIN (el primero, `admin` en los datos de ejemplo): el **único** que puede eliminar, desactivar o cambiar la contraseña de otros administradores. Nadie más puede modificarlo |
 | DOCENTE | Ver, dar de alta y editar estudiantes **solo de las carreras donde tiene materias**; inscribir estudiantes, **pasar lista** y cargar notas **solo de las materias que tiene a cargo** |
 | ESTUDIANTE | Ver sus notas (desglosadas), su **asistencia** en cada materia y si puede rendir el examen final |
 
@@ -65,6 +66,16 @@ Pantallas: panel de inicio con indicadores y avance de carga, **planilla de nota
 rápida con Enter y guardado en lote), gestión con búsqueda y filtros, y **Ajustes** donde cada usuario
 elige modo oscuro/claro, color principal, color de la barra lateral, densidad y tamaño de texto (se guarda
 en su cuenta) y cambia su contraseña. Por defecto: azul y negro.
+
+**Usuarios** se organiza en carpetas (Todos, Administradores, Docentes, Estudiantes) con su cantidad.
+Desde ahí o desde Estudiantes/Docentes se puede **eliminar** una cuenta de la base de datos: si tiene notas,
+asistencia o materias a cargo, se pide una segunda confirmación y se borran también esos datos (las materias
+de un docente quedan sin asignar).
+
+**Buzón**: en la pantalla de inicio de sesión hay **"¿Olvidó su contraseña?"** y **"Pedir una cuenta"**. El
+pedido llega al buzón de los administradores (el menú muestra cuántos hay pendientes); desde ahí se restablece
+la contraseña (y opcionalmente se quita el 2FA o se reactiva la cuenta) o se crea la cuenta pedida. El envío
+no revela si el usuario existe y está limitado a 5 pedidos cada 15 minutos por IP.
 
 ### Asistencia y notas (reglamento UPE)
 
@@ -148,7 +159,7 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `GET` | `/api/estudiantes?carreraId=` | DOCENTE\*\*, ADMIN | Lista estudiantes (filtro opcional por carrera) |
 | `POST` | `/api/estudiantes` | DOCENTE\*\*, ADMIN | Crea un estudiante y su usuario (rol ESTUDIANTE) |
 | `PUT` | `/api/estudiantes/{id}` | DOCENTE\*\*, ADMIN | Modifica datos, carrera y, opcionalmente, la contraseña |
-| `DELETE` | `/api/estudiantes/{id}` | ADMIN | Elimina un estudiante sin notas (y su usuario) |
+| `DELETE` | `/api/estudiantes/{id}?forzar=` | ADMIN | Elimina un estudiante y su usuario; con notas o asistencia responde `409` (`forzable`) salvo `forzar=true`, que las borra también |
 | `GET` | `/api/materias?carreraId=` | DOCENTE\*, ADMIN | Lista materias con su carrera y docente |
 | `POST` | `/api/materias` | ADMIN | Crea una materia (carrera obligatoria, docente opcional) |
 | `PUT` | `/api/materias/{id}` | ADMIN | Modifica una materia o cambia su docente |
@@ -161,10 +172,17 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 | `GET` | `/api/docentes` | ADMIN | Lista docentes con sus materias a cargo |
 | `POST` | `/api/docentes` | ADMIN | Crea un docente y su usuario (rol DOCENTE) |
 | `PUT` | `/api/docentes/{id}` | ADMIN | Modifica el nombre y, opcionalmente, la contraseña |
-| `DELETE` | `/api/docentes/{id}` | ADMIN | Elimina un docente sin materias a cargo (y su usuario) |
-| `GET` | `/api/usuarios` | ADMIN | Lista todos los usuarios |
+| `DELETE` | `/api/docentes/{id}?forzar=` | ADMIN | Elimina un docente y su usuario; con materias a cargo responde `409` salvo `forzar=true` (quedan sin asignar) |
+| `GET` | `/api/usuarios` | ADMIN | Lista todos los usuarios con nombre, matrícula/carrera y si es super administrador |
 | `POST` | `/api/usuarios` | ADMIN | Crea un usuario ADMIN |
-| `PATCH` | `/api/usuarios/{id}` | ADMIN | Activa/desactiva, cambia la contraseña o quita el 2FA (`quitarDosFactores`) |
+| `PATCH` | `/api/usuarios/{id}` | ADMIN\*\*\* | Activa/desactiva, cambia la contraseña o quita el 2FA (`quitarDosFactores`) |
+| `DELETE` | `/api/usuarios/{id}?forzar=` | ADMIN\*\*\* | Elimina la cuenta y su perfil de docente o estudiante (misma regla de `forzar`) |
+| `POST` | `/api/solicitudes` | público | "Olvidé mi contraseña" (`tipo: CONTRASENA`, `username`) o pedido de cuenta (`tipo: ACCESO`, `nombre`) |
+| `GET` | `/api/solicitudes?estado=` | ADMIN | Buzón: pedidos (`PENDIENTE`, `RESUELTA`, `DESCARTADA`) |
+| `GET` | `/api/solicitudes/pendientes` | ADMIN | Cantidad de pedidos pendientes |
+| `PATCH` | `/api/solicitudes/{id}` | ADMIN | Cambia el estado del pedido |
+| `POST` | `/api/solicitudes/{id}/restablecer` | ADMIN\*\*\* | Nueva contraseña para la cuenta del pedido (opcional: `quitarDosFactores`, `activar`) y lo marca resuelto |
+| `DELETE` | `/api/solicitudes/{id}` | ADMIN | Borra un pedido |
 | `GET` | `/api/perfil` | autenticado | Usuario, rol, nombre y preferencias de apariencia |
 | `PUT` | `/api/perfil/preferencias` | autenticado | Guarda modo, colores (`#rrggbb`), densidad y tamaño de texto |
 | `PUT` | `/api/perfil/contrasena` | autenticado | Cambia la propia contraseña (exige la actual) |
@@ -195,6 +213,7 @@ Todas las variables se leen del entorno (ver [`.env.example`](.env.example)):
 
 \* Un DOCENTE solo ve y opera sobre las materias que tiene a cargo (si no, `403`).
 \*\* Un DOCENTE solo ve y gestiona las carreras (y sus estudiantes) donde tiene materias a cargo.
+\*\*\* Sobre otro administrador solo puede hacerlo el **super administrador**; al super administrador nadie más lo modifica (`403`).
 
 Las rutas protegidas requieren el header `Authorization: Bearer <token>`.
 Los errores se devuelven en formato [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) (`application/problem+json`).
@@ -237,16 +256,18 @@ carreras (id, codigo, nombre, semestres)
    ├── 1:N ── estudiantes (id, usuario_id, matricula, nombre_completo, carrera_id)
    └── 1:N ── materias (id, codigo, nombre, creditos, semestre, carrera_id, docente_id)
 
-usuarios (id, username, password_hash, rol, activo, preferencias, totp_secreto, totp_secreto_pendiente)
+usuarios (id, username, password_hash, rol, activo, super_admin, preferencias, totp_secreto, totp_secreto_pendiente)
    ├── 1:1 ── estudiantes.usuario_id
    └── 1:1 ── docentes (id, usuario_id, nombre_completo)
                  └── 1:N ── materias.docente_id   (docente a cargo, opcional)
 
 calificaciones (id, estudiante_id, materia_id, nota, fecha_registro, fecha_actualizacion)
    UNIQUE (estudiante_id, materia_id) · CHECK (nota BETWEEN 0 AND 100)
+
+solicitudes (id, tipo, username, nombre, contacto, mensaje, estado, fecha_registro, atendida_por, fecha_atencion)
 ```
 
-Los cambios de esquema se hacen **siempre con una migración nueva** (`V7__descripcion.sql`, …) en
+Los cambios de esquema se hacen **siempre con una migración nueva** (`V8__descripcion.sql`, …) en
 `src/main/resources/db/migration`; nunca se modifica una migración ya subida.
 
 ## Estructura del proyecto

@@ -71,7 +71,10 @@ public class DataSeeder implements CommandLineRunner {
         Carrera administracion = carreraRepository.save(
                 Carrera.builder().codigo("ADM").nombre("Administración de Empresas").semestres(8).build());
 
-        crearUsuario("admin", "admin123", Rol.ADMIN);
+        // El primer administrador es el super administrador: el único que puede eliminar a otros administradores
+        Usuario admin = crearUsuario("admin", "admin123", Rol.ADMIN);
+        admin.setSuperAdmin(true);
+        usuarioRepository.save(admin);
         Docente docente = docenteRepository.save(Docente.builder()
                 .usuario(crearUsuario("docente", "docente123", Rol.DOCENTE))
                 .nombreCompleto("Docente de Prueba")

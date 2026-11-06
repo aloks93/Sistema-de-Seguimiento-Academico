@@ -70,8 +70,9 @@ public class EstudianteController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        estudianteService.eliminar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id,
+                                         @RequestParam(defaultValue = "false") boolean forzar) {
+        estudianteService.eliminar(id, forzar);
         return ResponseEntity.noContent().build();
     }
 }
