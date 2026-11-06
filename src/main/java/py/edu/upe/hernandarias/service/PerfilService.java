@@ -51,7 +51,7 @@ public class PerfilService {
             case ADMIN -> username;
         };
         return new PerfilResponse(usuario.getUsername(), usuario.getRol(), nombre, leer(usuario.getPreferencias()),
-                usuario.tieneDosFactores());
+                usuario.tieneDosFactores(), usuario.isSuperAdmin());
     }
 
     /**

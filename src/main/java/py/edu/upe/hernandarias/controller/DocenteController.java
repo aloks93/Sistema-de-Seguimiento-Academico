@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import py.edu.upe.hernandarias.dto.DocenteRequest;
 import py.edu.upe.hernandarias.dto.DocenteResponse;
@@ -43,8 +44,9 @@ public class DocenteController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        docenteService.eliminar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id,
+                                         @RequestParam(defaultValue = "false") boolean forzar) {
+        docenteService.eliminar(id, forzar);
         return ResponseEntity.noContent().build();
     }
 }

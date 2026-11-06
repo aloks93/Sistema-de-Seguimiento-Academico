@@ -1,13 +1,15 @@
 // Interfaz web del Sistema de Seguimiento Académico: navegación y pantallas.
 //
 // Roles:
-//   ADMIN      gestiona carreras, docentes, materias, estudiantes, usuarios y todas las notas
+//   ADMIN      gestiona carreras, docentes, materias, estudiantes, usuarios y todas las notas;
+//              atiende el buzón (olvidé mi contraseña / pedidos de acceso). El super administrador
+//              es el único que elimina o modifica a otros administradores.
 //   DOCENTE    estudiantes de sus carreras y notas de las materias que tiene a cargo
 //   ESTUDIANTE sus propias notas
 // Todos tienen "Ajustes" para personalizar la apariencia y cambiar su contraseña.
 
 import {
-    $, api, descargar, el, estado, esAdmin, formatearFecha, formatearNumero, guardarSesion,
+    $, api, descargar, el, estado, esAdmin, esSuperAdmin, formatearFecha, formatearNumero, guardarSesion,
     leerSesion, alExpirarSesion, normalizar, promedio, subirArchivo,
 } from './nucleo.js';
 import {
@@ -63,11 +65,15 @@ const RUTAS = {
         titulo: 'Exoneraciones', icono: 'escudo', roles: ['ADMIN'], render: vistaExoneraciones,
         subtitulo: 'Exoneraciones de asistencia por causa justificada (hasta 2 materias por semestre)',
     },
-    usuarios: { titulo: 'Usuarios', icono: 'usuarios', roles: ['ADMIN'], render: vistaUsuarios, subtitulo: 'Cuentas de acceso, activación, contraseñas y verificación en dos pasos' },
+    usuarios: { titulo: 'Usuarios', icono: 'usuarios', roles: ['ADMIN'], render: vistaUsuarios, subtitulo: 'Cuentas de acceso por tipo: administradores, docentes y estudiantes' },
+    buzon: {
+        titulo: 'Buzón', icono: 'buzon', roles: ['ADMIN'], render: vistaBuzon,
+        subtitulo: 'Pedidos enviados desde el inicio de sesión: contraseñas olvidadas y cuentas nuevas',
+    },
     ajustes: { titulo: 'Ajustes', icono: 'ajustes', roles: TODOS, render: vistaAjustes, subtitulo: 'Apariencia, seguridad y datos de su cuenta' },
 };
 const MENU_PRINCIPAL = ['inicio', 'misNotas', 'misAsistencias', 'notas', 'asistencia', 'reportes', 'estudiantes',
-    'materias', 'docentes', 'carreras', 'exoneraciones', 'cargaMasiva', 'usuarios'];
+    'materias', 'docentes', 'carreras', 'exoneraciones', 'cargaMasiva', 'usuarios', 'buzon'];
 
 // ======================= Asistencia y notas: utilidades =======================
 
@@ -439,10 +445,32 @@ function dibujarMenu() {
         avatar(nombre, 'avatar--lateral'),
         el('div', { class: 'lateral__usuario-textos' },
             el('span', { class: 'lateral__usuario-nombre' }, nombre),
-            el('span', { class: 'lateral__usuario-rol' }, NOMBRES_ROL[estado.sesion.rol])));
+            el('span', { class: 'lateral__usuario-rol' }, esSuperAdmin() ? 'Super administrador' : NOMBRES_ROL[estado.sesion.rol])));
     const { id } = leerRuta();
     document.querySelector(`.nav__item[data-ruta="${id}"]`)?.classList.add('activo');
+    actualizarInsigniaBuzon();
 }
+
+/** Muestra en el menú cuántos pedidos pendientes hay en el buzón (solo administradores). */
+async function actualizarInsigniaBuzon() {
+    if (!esAdmin()) return;
+    let cantidad = 0;
+    try {
+        ({ cantidad } = await api('GET', '/api/solicitudes/pendientes'));
+    } catch {
+        return; // sin conexión: se reintenta en la próxima actualización
+    }
+    const enlace = document.querySelector('.nav__item[data-ruta="buzon"]');
+    if (!enlace) return;
+    enlace.querySelector('.insignia')?.remove();
+    if (cantidad > 0) {
+        enlace.append(el('span', { class: 'insignia', title: `${cantidad} ${cantidad === 1 ? 'pedido pendiente' : 'pedidos pendientes'}` },
+            cantidad > 99 ? '99+' : String(cantidad)));
+    }
+}
+setInterval(() => {
+    if (estado.sesion && document.visibilityState === 'visible') actualizarInsigniaBuzon();
+}, 60_000);
 
 // ======================= Inicio (panel) =======================
 
@@ -866,9 +894,9 @@ async function vistaEstudiantes(parametros) {
             { titulo: 'Estado', celda: (e) => chip(e.activo ? 'Activo' : 'Inactivo', e.activo ? 'exito' : 'peligro') },
             { titulo: '', clase: 'acciones', celda: (e) => [
                 botonIcono('editar', `Editar a ${e.nombreCompleto}`, () => formularioEstudiante(carreras, e)),
-                esAdmin() && botonIcono('eliminar', `Eliminar a ${e.nombreCompleto}`, () => eliminarRegistro(
+                esAdmin() && botonIcono('eliminar', `Eliminar a ${e.nombreCompleto}`, () => eliminarConDatos(
                     `/api/estudiantes/${e.id}`, 'Eliminar estudiante',
-                    `Se eliminará a ${e.nombreCompleto} y su usuario. Solo es posible si no tiene notas.`), 'peligro'),
+                    `Se eliminará a ${e.nombreCompleto} y su usuario de la base de datos.`), 'peligro'),
             ] },
         ],
         filas: estudiantes,
@@ -1030,8 +1058,8 @@ async function vistaDocentes() {
             { titulo: 'Estado', celda: (d) => chip(d.activo ? 'Activo' : 'Inactivo', d.activo ? 'exito' : 'peligro') },
             { titulo: '', clase: 'acciones', celda: (d) => [
                 botonIcono('editar', `Editar a ${d.nombreCompleto}`, () => formularioDocente(d)),
-                botonIcono('eliminar', `Eliminar a ${d.nombreCompleto}`, () => eliminarRegistro(`/api/docentes/${d.id}`,
-                    'Eliminar docente', `Se eliminará a ${d.nombreCompleto} y su usuario. Solo es posible si no tiene materias a cargo.`), 'peligro'),
+                botonIcono('eliminar', `Eliminar a ${d.nombreCompleto}`, () => eliminarConDatos(`/api/docentes/${d.id}`,
+                    'Eliminar docente', `Se eliminará a ${d.nombreCompleto} y su usuario de la base de datos.`), 'peligro'),
             ] },
         ],
         filas: docentes,
@@ -1124,39 +1152,103 @@ function formularioCarrera(carrera) {
 
 // ======================= Usuarios =======================
 
-async function vistaUsuarios() {
-    const usuarios = await api('GET', '/api/usuarios');
-    ponerAcciones(boton('Nuevo administrador', () => formularioAdministrador(), { variante: 'primario', iconoNombre: 'mas' }));
-    const tipoRol = { ADMIN: 'primario', DOCENTE: 'neutro', ESTUDIANTE: 'neutro' };
+// Carpetas de la pantalla Usuarios: [id, título, ícono, filtro]
+const CARPETAS_USUARIOS = [
+    ['todos', 'Todos', 'usuarios', () => true],
+    ['administradores', 'Administradores', 'escudo', (u) => u.rol === 'ADMIN'],
+    ['docentes', 'Docentes', 'docentes', (u) => u.rol === 'DOCENTE'],
+    ['estudiantes', 'Estudiantes', 'estudiantes', (u) => u.rol === 'ESTUDIANTE'],
+];
 
+/**
+ * Qué puede hacer el usuario actual con la cuenta `u`: a sí mismo solo cambiarse la contraseña;
+ * a otro administrador solo el super administrador; al super administrador nadie.
+ */
+function permisosSobre(u) {
+    const propio = u.username === estado.sesion.username;
+    const bloqueado = !propio && (u.superAdmin || (u.rol === 'ADMIN' && !esSuperAdmin()));
+    return { propio, gestionar: !propio && !bloqueado, contrasena: propio || !bloqueado };
+}
+
+async function vistaUsuarios(parametros) {
+    const usuarios = await api('GET', '/api/usuarios');
+    const ver = CARPETAS_USUARIOS.some(([id]) => id === parametros.get('ver')) ? parametros.get('ver') : 'todos';
+    const [, tituloCarpeta, , filtro] = CARPETAS_USUARIOS.find(([id]) => id === ver);
+    const visibles = usuarios.filter(filtro);
+    ponerAcciones(boton('Nuevo administrador', () => formularioAdministrador(), { variante: 'primario', iconoNombre: 'mas' }));
+
+    const carpetas = el('div', { class: 'carpetas', role: 'tablist', 'aria-label': 'Tipos de usuario' },
+        CARPETAS_USUARIOS.map(([id, titulo, nombreIcono, filtroCarpeta]) => {
+            const lista = usuarios.filter(filtroCarpeta);
+            const inactivos = lista.filter((u) => !u.activo).length;
+            return el('button', {
+                type: 'button', class: 'carpeta', role: 'tab', 'aria-selected': String(id === ver), 'aria-pressed': String(id === ver),
+                onclick: () => ir(id === 'todos' ? 'usuarios' : `usuarios?ver=${id}`),
+            },
+            el('span', { class: 'carpeta__icono' }, icono(id === 'todos' ? 'carpeta' : nombreIcono)),
+            el('span', { class: 'carpeta__textos' },
+                el('span', { class: 'carpeta__titulo' }, titulo),
+                el('span', { class: 'carpeta__detalle' }, inactivos ? `${inactivos} inactivo${inactivos === 1 ? '' : 's'}` : 'Todos activos')),
+            el('span', { class: 'carpeta__cantidad' }, String(lista.length)));
+        }));
+
+    const tipoRol = { ADMIN: 'primario', DOCENTE: 'neutro', ESTUDIANTE: 'neutro' };
     const contenedor = el('div', {}, tabla({
         columnas: [
-            { titulo: 'Usuario', celda: (u) => persona(u.username, u.username === estado.sesion.username ? 'Usted' : null) },
-            { titulo: 'Rol', celda: (u) => chip(NOMBRES_ROL[u.rol], tipoRol[u.rol]) },
+            { titulo: 'Usuario', celda: (u) => persona(u.nombre ?? u.username,
+                [u.nombre && u.nombre !== u.username ? `Usuario: ${u.username}` : null,
+                    u.username === estado.sesion.username ? 'Usted' : null].filter(Boolean).join(' · ') || null) },
+            { titulo: 'Rol', celda: (u) => el('div', { class: 'chips' },
+                chip(NOMBRES_ROL[u.rol], tipoRol[u.rol]),
+                u.superAdmin && el('span', { class: 'chip chip--aviso chip--icono' }, icono('corona'), 'Super admin')) },
+            ver === 'estudiantes' || ver === 'todos'
+                ? { titulo: 'Matrícula y carrera', celda: (u) => (u.detalle ? el('span', { class: 'sutil' }, u.detalle) : '') }
+                : null,
             { titulo: 'Estado', celda: (u) => chip(u.activo ? 'Activo' : 'Inactivo', u.activo ? 'exito' : 'peligro') },
-            { titulo: 'Verificación en 2 pasos', celda: (u) => (u.dosFactores ? chip('Activa', 'exito') : el('span', { class: 'sutil' }, 'No')) },
-            { titulo: '', clase: 'acciones', celda: (u) => [
-                u.dosFactores && u.username !== estado.sesion.username
-                    && boton('Quitar 2FA', () => quitarDosFactores(u), { variante: 'fantasma' }),
-                botonIcono('llave', `Cambiar la contraseña de ${u.username}`, () => formularioContrasenaDe(u)),
-                u.username !== estado.sesion.username && (u.activo
-                    ? boton('Desactivar', () => cambiarActivo(u, false), { variante: 'fantasma' })
-                    : boton('Activar', () => cambiarActivo(u, true), { variante: 'fantasma' })),
-            ] },
-        ],
-        filas: usuarios,
-        vacio: estadoVacio({ titulo: 'No hay usuarios' }),
+            { titulo: '2 pasos', celda: (u) => (u.dosFactores ? chip('Activa', 'exito') : el('span', { class: 'sutil' }, 'No')) },
+            { titulo: '', clase: 'acciones', celda: (u) => {
+                const puede = permisosSobre(u);
+                if (!puede.contrasena) {
+                    return el('span', { class: 'sutil', title: 'Solo el super administrador puede modificar a otros administradores' },
+                        icono('candado'), ' Protegido');
+                }
+                return [
+                    puede.gestionar && u.dosFactores && boton('Quitar 2FA', () => quitarDosFactores(u), { variante: 'fantasma' }),
+                    botonIcono('llave', `Cambiar la contraseña de ${u.username}`, () => formularioContrasenaDe(u)),
+                    puede.gestionar && (u.activo
+                        ? boton('Desactivar', () => cambiarActivo(u, false), { variante: 'fantasma' })
+                        : boton('Activar', () => cambiarActivo(u, true), { variante: 'fantasma' })),
+                    puede.gestionar && botonIcono('eliminar', `Eliminar a ${u.username}`, () => eliminarConDatos(
+                        `/api/usuarios/${u.id}`, 'Eliminar usuario',
+                        `Se eliminará la cuenta "${u.username}"${u.rol === 'ADMIN' ? '' : ` y el perfil de ${NOMBRES_ROL[u.rol].toLowerCase()} de ${u.nombre}`} de la base de datos.`),
+                    'peligro'),
+                ];
+            } },
+        ].filter(Boolean),
+        filas: visibles,
+        vacio: estadoVacio({ iconoNombre: 'carpeta', titulo: `No hay ${tituloCarpeta.toLowerCase()}`,
+            texto: ver === 'administradores' ? 'Cree uno con "Nuevo administrador".'
+                : ver === 'docentes' ? 'Los docentes se crean en la pestaña Docentes.'
+                    : ver === 'estudiantes' ? 'Los estudiantes se crean en la pestaña Estudiantes.' : null }),
     }));
 
+    const avisoJerarquia = ver === 'administradores' && el('p', { class: 'nota-jerarquia' }, icono('corona'),
+        esSuperAdmin()
+            ? 'Usted es el super administrador: es el único que puede eliminar, desactivar o cambiar la contraseña de otros administradores.'
+            : 'Cualquier administrador puede crear otros, pero solo el super administrador puede eliminarlos o modificarlos.');
+
     return el('div', { class: 'pila' },
-        barraHerramientas(buscador('Buscar usuario…', () => contenedor, busquedas.get('usuarios'), (v) => busquedas.set('usuarios', v))),
+        carpetas,
+        avisoJerarquia,
+        barraHerramientas(buscador(`Buscar en ${tituloCarpeta.toLowerCase()}…`, () => contenedor, busquedas.get('usuarios'), (v) => busquedas.set('usuarios', v))),
         contenedor);
 }
 
 function formularioAdministrador() {
     abrirFormulario({
         titulo: 'Nuevo administrador',
-        descripcion: 'Tendrá acceso completo al sistema. Los docentes y estudiantes se crean en sus pestañas.',
+        descripcion: 'Tendrá acceso completo al sistema, pero solo el super administrador podrá eliminarlo o modificarlo. '
+            + 'Los docentes y estudiantes se crean en sus pestañas.',
         campos: [
             { nombre: 'username', etiqueta: 'Usuario', maxlength: 50, ancho: 'completo' },
             { nombre: 'password', etiqueta: 'Contraseña', tipo: 'password', minlength: 6, maxlength: 72, ancho: 'completo', ayuda: 'Mínimo 6 caracteres' },
@@ -1217,6 +1309,203 @@ async function quitarDosFactores(usuario) {
     } catch (error) {
         avisar(error.message, 'error');
     }
+}
+
+/**
+ * Elimina en dos pasos: primero lo normal; si el servidor avisa que tiene datos asociados (notas,
+ * asistencia, materias a cargo) pregunta otra vez y, si se acepta, lo elimina con todo (?forzar=true).
+ */
+async function eliminarConDatos(ruta, titulo, mensaje) {
+    if (!(await confirmar({ titulo, mensaje: `${mensaje} Esta acción no se puede deshacer.`, textoBoton: 'Eliminar', peligro: true }))) return;
+    try {
+        try {
+            await api('DELETE', ruta);
+        } catch (error) {
+            if (!error.problema?.forzable) throw error;
+            const forzar = await confirmar({ titulo: 'Tiene datos asociados', mensaje: error.message, textoBoton: 'Eliminar de todas formas', peligro: true });
+            if (!forzar) return;
+            await api('DELETE', `${ruta}?forzar=true`);
+        }
+        avisar('Eliminado correctamente.', 'exito');
+        await recargar();
+    } catch (error) {
+        avisar(error.message, 'error');
+    }
+}
+
+// ======================= Buzón (ADMIN) =======================
+
+const NOMBRES_TIPO_SOLICITUD = { CONTRASENA: 'Olvidó su contraseña', ACCESO: 'Pide una cuenta' };
+const FILTROS_BUZON = [
+    ['PENDIENTE', 'Pendientes', 'buzon'],
+    ['RESUELTA', 'Resueltas', 'check'],
+    ['DESCARTADA', 'Descartadas', 'cerrar'],
+    ['', 'Todas', 'carpeta'],
+];
+
+function formatearFechaHora(iso) {
+    return iso ? new Date(iso).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+async function vistaBuzon(parametros) {
+    const ver = parametros.has('estado') ? parametros.get('estado') : 'PENDIENTE';
+    const estadoFiltro = FILTROS_BUZON.some(([id]) => id === ver) ? ver : 'PENDIENTE';
+    const [solicitudes, { cantidad: pendientes }] = await Promise.all([
+        api('GET', conParametro('/api/solicitudes', 'estado', estadoFiltro)),
+        api('GET', '/api/solicitudes/pendientes'),
+    ]);
+    actualizarInsigniaBuzon();
+
+    const pestanas = el('div', { class: 'segmentado pestanas', role: 'tablist' },
+        FILTROS_BUZON.map(([id, texto, nombreIcono]) => el('button', {
+            type: 'button', class: 'segmento', role: 'tab', 'aria-selected': String(id === estadoFiltro), 'aria-pressed': String(id === estadoFiltro),
+            onclick: () => ir(id === 'PENDIENTE' ? 'buzon' : `buzon?estado=${id}`),
+        }, icono(nombreIcono), id === 'PENDIENTE' ? `${texto} (${pendientes})` : texto)));
+
+    const tonoEstado = { PENDIENTE: 'aviso', RESUELTA: 'exito', DESCARTADA: 'neutro' };
+    const nombreEstado = { PENDIENTE: 'Pendiente', RESUELTA: 'Resuelta', DESCARTADA: 'Descartada' };
+    const contenedor = el('div', {}, tabla({
+        columnas: [
+            { titulo: 'Pedido', celda: (s) => el('div', { class: 'celda-doble' },
+                chip(NOMBRES_TIPO_SOLICITUD[s.tipo], s.tipo === 'CONTRASENA' ? 'primario' : 'neutro'),
+                el('span', { class: 'sutil' }, formatearFechaHora(s.fechaRegistro))) },
+            { titulo: 'Persona', celda: (s) => persona(s.nombre ?? s.username ?? 'Sin nombre',
+                [s.username && `Usuario: ${s.username}`, s.contacto].filter(Boolean).join(' · ') || null) },
+            { titulo: 'Cuenta', celda: (s) => (s.usuarioId
+                ? el('div', { class: 'chips' }, chip(NOMBRES_ROL[s.usuarioRol]), !s.usuarioActivo && chip('Inactiva', 'peligro'))
+                : el('span', { class: 'sutil' }, s.username ? 'No existe' : '—')) },
+            { titulo: 'Mensaje', clase: 'columna-mensaje', celda: (s) => (s.mensaje ? el('span', { class: 'mensaje-solicitud' }, s.mensaje) : el('span', { class: 'sutil' }, '—')) },
+            { titulo: 'Estado', celda: (s) => el('div', { class: 'celda-doble' },
+                chip(nombreEstado[s.estado], tonoEstado[s.estado]),
+                s.atendidaPor && el('span', { class: 'sutil' }, `por ${s.atendidaPor}`)) },
+            { titulo: '', clase: 'acciones', celda: (s) => accionesSolicitud(s) },
+        ],
+        filas: solicitudes,
+        vacio: estadoVacio({ iconoNombre: 'buzon',
+            titulo: estadoFiltro === 'PENDIENTE' ? 'No hay pedidos pendientes' : 'No hay pedidos',
+            texto: 'Los pedidos llegan desde "¿Olvidó su contraseña?" y "Pedir una cuenta" en la pantalla de inicio de sesión.' }),
+    }));
+
+    return el('div', { class: 'pila' },
+        pestanas,
+        barraHerramientas(buscador('Buscar por usuario, nombre o mensaje…', () => contenedor, busquedas.get('buzon'), (v) => busquedas.set('buzon', v))),
+        contenedor);
+}
+
+function accionesSolicitud(s) {
+    const pendiente = s.estado === 'PENDIENTE';
+    const cuentaProtegida = s.usuarioSuperAdmin || (s.usuarioRol === 'ADMIN' && !esSuperAdmin());
+    return [
+        pendiente && s.tipo === 'CONTRASENA' && s.usuarioId && !cuentaProtegida
+            && boton('Restablecer', () => formularioRestablecer(s), { variante: 'primario', iconoNombre: 'llave' }),
+        pendiente && s.tipo === 'ACCESO'
+            && boton('Crear cuenta', () => elegirAltaDeCuenta(s), { variante: 'primario', iconoNombre: 'mas' }),
+        pendiente
+            ? [
+                botonIcono('check', 'Marcar como resuelta', () => cambiarEstadoSolicitud(s, 'RESUELTA')),
+                botonIcono('cerrar', 'Descartar', () => cambiarEstadoSolicitud(s, 'DESCARTADA')),
+            ]
+            : boton('Reabrir', () => cambiarEstadoSolicitud(s, 'PENDIENTE'), { variante: 'fantasma', iconoNombre: 'deshacer' }),
+        botonIcono('eliminar', 'Eliminar pedido', () => eliminarSolicitud(s), 'peligro'),
+    ];
+}
+
+function formularioRestablecer(s) {
+    abrirFormulario({
+        titulo: `Restablecer la contraseña de ${s.username}`,
+        descripcion: 'Comuníquele la contraseña nueva a la persona (por ejemplo, al contacto que dejó). '
+            + 'Después puede cambiarla desde sus Ajustes.',
+        campos: [
+            { nombre: 'nueva', etiqueta: 'Contraseña nueva', tipo: 'password', minlength: 6, maxlength: 72, ancho: 'completo' },
+            { nombre: 'repetir', etiqueta: 'Repetir contraseña', tipo: 'password', minlength: 6, maxlength: 72, ancho: 'completo' },
+            { nombre: 'quitarDosFactores', etiqueta: 'Quitar también la verificación en dos pasos', tipo: 'checkbox', ancho: 'completo',
+                ayuda: 'Si perdió el celular con Google Authenticator' },
+            !s.usuarioActivo && { nombre: 'activar', etiqueta: 'Volver a activar la cuenta', tipo: 'checkbox', ancho: 'completo',
+                ayuda: 'La cuenta está desactivada y no podrá ingresar si no se activa' },
+        ].filter(Boolean),
+        valores: { activar: !s.usuarioActivo },
+        textoBoton: 'Restablecer y marcar resuelta',
+        alGuardar: async (datos) => {
+            if (datos.nueva !== datos.repetir) throw new Error('Las contraseñas no coinciden.');
+            await api('POST', `/api/solicitudes/${s.id}/restablecer`, {
+                password: datos.nueva, quitarDosFactores: datos.quitarDosFactores === 'on', activar: datos.activar === 'on',
+            });
+            avisar(`Contraseña de ${s.username} restablecida.`, 'exito');
+            await recargar();
+        },
+    });
+}
+
+/** Pedido de cuenta nueva: deja el pedido resuelto y lleva a la pestaña donde se crea ese tipo de cuenta. */
+function elegirAltaDeCuenta(s) {
+    const datos = [s.nombre, s.username && `usuario sugerido "${s.username}"`, s.contacto].filter(Boolean).join(' · ');
+    const destinos = { ESTUDIANTE: 'estudiantes', DOCENTE: 'docentes', ADMIN: 'usuarios?ver=administradores' };
+    abrirFormulario({
+        titulo: 'Crear la cuenta',
+        descripcion: `${datos}. El pedido quedará resuelto y se abrirá la pestaña para crear la cuenta.`,
+        campos: [
+            { nombre: 'rol', etiqueta: 'Tipo de cuenta', tipo: 'select', ancho: 'completo',
+                opciones: [{ valor: 'ESTUDIANTE', texto: 'Estudiante' }, { valor: 'DOCENTE', texto: 'Docente' }, { valor: 'ADMIN', texto: 'Administrador' }] },
+        ],
+        textoBoton: 'Continuar',
+        alGuardar: async ({ rol }) => {
+            await api('PATCH', `/api/solicitudes/${s.id}`, { estado: 'RESUELTA' });
+            actualizarInsigniaBuzon();
+            ir(destinos[rol]);
+        },
+    });
+}
+
+async function cambiarEstadoSolicitud(s, estadoNuevo) {
+    try {
+        await api('PATCH', `/api/solicitudes/${s.id}`, { estado: estadoNuevo });
+        avisar({ RESUELTA: 'Pedido marcado como resuelto.', DESCARTADA: 'Pedido descartado.', PENDIENTE: 'Pedido reabierto.' }[estadoNuevo], 'exito');
+        await recargar();
+    } catch (error) {
+        avisar(error.message, 'error');
+    }
+}
+
+async function eliminarSolicitud(s) {
+    if (!(await confirmar({ titulo: 'Eliminar pedido', mensaje: 'El pedido se borrará del buzón.', textoBoton: 'Eliminar', peligro: true }))) return;
+    try {
+        await api('DELETE', `/api/solicitudes/${s.id}`);
+        avisar('Pedido eliminado.', 'exito');
+        await recargar();
+    } catch (error) {
+        avisar(error.message, 'error');
+    }
+}
+
+// ======================= Olvidé mi contraseña / pedir una cuenta (sin sesión) =======================
+
+function formularioPedido(tipo) {
+    const usuarioEscrito = $('#form-login').elements.username.value.trim();
+    const esContrasena = tipo === 'CONTRASENA';
+    abrirFormulario({
+        titulo: esContrasena ? '¿Olvidó su contraseña?' : 'Pedir una cuenta',
+        descripcion: esContrasena
+            ? 'Se enviará un pedido al buzón del administrador. Le pondrá una contraseña nueva y se comunicará con usted.'
+            : 'Se enviará un pedido al buzón del administrador para que le cree un usuario.',
+        campos: [
+            { nombre: 'username', etiqueta: esContrasena ? 'Su usuario' : 'Usuario que le gustaría tener', maxlength: 50,
+                requerido: esContrasena, ancho: 'completo', autocomplete: 'username' },
+            { nombre: 'nombre', etiqueta: 'Nombre completo', maxlength: 150, requerido: !esContrasena, ancho: 'completo', autocomplete: 'name' },
+            { nombre: 'contacto', etiqueta: 'Correo o teléfono', maxlength: 150, ancho: 'completo', autocomplete: 'email',
+                placeholder: 'Para que el administrador le avise', requerido: false },
+            { nombre: 'mensaje', etiqueta: 'Mensaje', tipo: 'textarea', maxlength: 500, requerido: false, ancho: 'completo',
+                placeholder: esContrasena ? 'Ej.: perdí el celular con el código de verificación' : 'Ej.: soy estudiante de Ingeniería en Informática, matrícula 2026-0123' },
+        ],
+        valores: { username: usuarioEscrito },
+        textoBoton: 'Enviar pedido',
+        alGuardar: async (datos) => {
+            const respuesta = await api('POST', '/api/solicitudes', {
+                tipo, username: datos.username?.trim() || null, nombre: datos.nombre?.trim() || null,
+                contacto: datos.contacto?.trim() || null, mensaje: datos.mensaje?.trim() || null,
+            });
+            avisar(respuesta.mensaje, 'exito');
+        },
+    });
 }
 
 async function eliminarRegistro(ruta, titulo, mensaje) {
@@ -2236,6 +2525,8 @@ alExpirarSesion(() => cerrarSesion('La sesión expiró. Ingrese de nuevo.'));
 $('#form-login').addEventListener('submit', ingresar);
 iniciarMovimiento();
 $('#login-volver').addEventListener('click', () => pasoDeLogin(false));
+$('#login-olvide').addEventListener('click', () => formularioPedido('CONTRASENA'));
+$('#login-pedir-cuenta').addEventListener('click', () => formularioPedido('ACCESO'));
 $('#boton-salir').addEventListener('click', async () => {
     if (await puedeSalir()) cerrarSesion();
 });

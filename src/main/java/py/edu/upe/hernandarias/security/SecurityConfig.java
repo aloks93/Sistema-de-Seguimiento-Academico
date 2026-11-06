@@ -36,6 +36,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/", "/index.html", "/css/**", "/js/**", "/favicon.ico")
                                 .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // "Olvidé mi contraseña" y pedidos de acceso: se envían sin estar logueado
+                        .requestMatchers(HttpMethod.POST, "/api/solicitudes").permitAll()
+                        .requestMatchers("/api/solicitudes/**").hasRole(Rol.ADMIN.name())
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/estudiantes/me/**", "/api/exportar/mis-notas").hasRole(Rol.ESTUDIANTE.name())
                         // Excel: el contenido respeta la jerarquía; docentes/carreras y la carga masiva son del ADMIN

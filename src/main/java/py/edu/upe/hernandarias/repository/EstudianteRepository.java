@@ -10,6 +10,8 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
 
     Optional<Estudiante> findByUsuarioUsername(String username);
 
+    Optional<Estudiante> findByUsuarioId(Long usuarioId);
+
     Optional<Estudiante> findByMatricula(String matricula);
 
     @EntityGraph(attributePaths = {"usuario", "carrera"})

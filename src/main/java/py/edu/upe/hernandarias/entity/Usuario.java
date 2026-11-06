@@ -42,6 +42,14 @@ public class Usuario {
     @Column(nullable = false)
     private boolean activo = true;
 
+    /**
+     * Único administrador que puede eliminar, desactivar o cambiar la contraseña de otros
+     * administradores. Nadie puede eliminarlo ni desactivarlo.
+     */
+    @Builder.Default
+    @Column(name = "super_admin", nullable = false)
+    private boolean superAdmin = false;
+
     /** Preferencias de apariencia en JSON (ver PreferenciasDto); {@code null} = valores por defecto. */
     @Column(length = 1000)
     private String preferencias;

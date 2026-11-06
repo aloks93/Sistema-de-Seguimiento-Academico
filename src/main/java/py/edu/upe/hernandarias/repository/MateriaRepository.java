@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import py.edu.upe.hernandarias.entity.Materia;
@@ -38,4 +39,9 @@ public interface MateriaRepository extends JpaRepository<Materia, Long> {
     boolean existsByDocenteId(Long docenteId);
 
     long countByCarreraId(Long carreraId);
+
+    /** Deja sin docente asignado las materias que tenía a cargo (al eliminar al docente). */
+    @Modifying
+    @Query("update Materia m set m.docente = null where m.docente.id = :docenteId")
+    int quitarDocente(@Param("docenteId") Long docenteId);
 }

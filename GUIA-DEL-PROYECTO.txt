@@ -238,10 +238,30 @@ CÓMO USAR LA PÁGINA WEB
                 desde Excel (ver "CARGA MASIVA POR EXCEL" abajo).
   Exoneraciones exonerar a un estudiante de la asistencia de una materia
                 (ver "EXONERACIONES" abajo).
-  Usuarios .... crear otros administradores, cambiar la contraseña de
-                cualquiera (🔑), Desactivar / Activar cuentas, ver quién
-                tiene verificación en dos pasos y "Quitar 2FA" (para quien
-                perdió el celular).
+  Usuarios .... organizado en CARPETAS: Todos, Administradores, Docentes
+                y Estudiantes (cada una con su cantidad). Crear otros
+                administradores, cambiar contraseñas (🔑), Desactivar /
+                Activar cuentas, "Quitar 2FA" (para quien perdió el celular)
+                y ELIMINAR una cuenta de la base de datos (🗑).
+                Si tiene notas, asistencia o materias a cargo, el sistema
+                avisa y pide confirmar otra vez: "Eliminar de todas formas"
+                borra también sus notas y asistencia (las materias de un
+                docente quedan sin asignar). No se puede deshacer.
+                SUPER ADMINISTRADOR: hay uno solo (en los datos de ejemplo,
+                "admin"; en una base existente, el primer administrador
+                creado). Cualquier administrador puede crear otros, pero
+                SOLO el super administrador puede eliminarlos, desactivarlos
+                o cambiarles la contraseña. Al super administrador nadie
+                más lo puede modificar ni eliminar (aparece "Protegido").
+  Buzón ....... pedidos que llegan desde la pantalla de inicio de sesión
+                (el menú muestra cuántos hay pendientes):
+                - "¿Olvidó su contraseña?": botón "Restablecer" pone una
+                  contraseña nueva (y si se marca, quita el 2FA o reactiva
+                  la cuenta). Después hay que avisarle a la persona por el
+                  contacto que dejó.
+                - "Pedir una cuenta": botón "Crear cuenta" lleva a la
+                  pestaña donde se crea (estudiante, docente o admin).
+                ✓ marca resuelto, ✕ descarta, 🗑 borra el pedido.
   Ajustes ..... apariencia y contraseña propia (ver abajo).
 
   Orden recomendado para cargar todo desde cero (como admin):
@@ -776,7 +796,16 @@ Ejemplo: un docente registra una nota.
   DELETE  /api/docentes/{id}                   ADMIN
   GET     /api/usuarios                        ADMIN
   POST    /api/usuarios   (crea un ADMIN)      ADMIN
-  PATCH   /api/usuarios/{id}                   ADMIN
+  PATCH   /api/usuarios/{id}                   ADMIN (a otro admin: solo
+                                               el super administrador)
+  DELETE  /api/usuarios/{id}?forzar=true       ADMIN (ídem)
+  POST    /api/solicitudes                     PÚBLICO (olvidé mi contraseña
+                                               / pedir una cuenta)
+  GET     /api/solicitudes?estado=PENDIENTE    ADMIN (buzón)
+  GET     /api/solicitudes/pendientes          ADMIN (cantidad)
+  PATCH   /api/solicitudes/{id}                ADMIN (estado del pedido)
+  POST    /api/solicitudes/{id}/restablecer    ADMIN (contraseña nueva)
+  DELETE  /api/solicitudes/{id}                ADMIN
   GET     /api/perfil                          cualquiera con sesión
   PUT     /api/perfil/preferencias             cualquiera con sesión
   PUT     /api/perfil/contrasena               cualquiera con sesión
@@ -846,7 +875,7 @@ VS Code.
                                  puntaje_trabajo_practico,
                                  puntaje_examen_final)
 
-  usuarios (id, username, password_hash, rol, activo)
+  usuarios (id, username, password_hash, rol, activo, super_admin)
      |-- 1 a 1 -- estudiantes.usuario_id
      |-- 1 a 1 -- docentes (id, usuario_id, nombre_completo)
                      |-- 1 a muchos -- materias.docente_id (docente a cargo)
@@ -859,6 +888,8 @@ VS Code.
      |-- 1 a muchos -- asistencias (id, clase_id, estudiante_id, estado,
                                     observacion)
   exoneraciones  (id, estudiante_id, materia_id, motivo, otorgada_por)
+  solicitudes    (id, tipo, username, nombre, contacto, mensaje, estado,
+                  fecha_registro, atendida_por, fecha_atencion)  -- buzón
 
   Reglas: un estudiante tiene UNA sola nota por materia, la nota va de
   0 a 100, y solo puede tener notas de materias de su carrera. Los

@@ -9,6 +9,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByUsername(String username);
 
+    /** Para el buzón: la persona puede escribir su usuario con otras mayúsculas. */
+    Optional<Usuario> findFirstByUsernameIgnoreCase(String username);
+
     boolean existsByUsername(String username);
 
     List<Usuario> findAllByOrderByRolAscUsernameAsc();
